@@ -158,6 +158,9 @@ summary::-webkit-details-marker{display:none}
 summary::after{content:" +";color:var(--gold)}
 details[open] summary::after{content:" −"}
 details p{margin:8px 0 0}
+.credit{text-align:center;font-size:12.5px;color:var(--muted);padding-top:4px}
+.credit a{color:inherit}
+.credit a:hover{color:var(--cream)}
 kbd{font:600 11px var(--f-body);border:1px solid rgba(243,238,220,.3);border-radius:4px;padding:1px 5px;color:var(--cream)}
 
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50}
@@ -211,6 +214,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .conn[data-k="bad"]{color:#F39A8F}.conn[data-k="bad"]::before{background:var(--red)}
 .conn[data-k="wait"]::before{background:var(--gold)}
 </style>
+<script src="analytics.js"></script>
 </head>
 <body>
 
@@ -316,6 +320,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
     <p>With friends: one person creates a room and shares the code. Everyone races on the same card with a 5 minute limit, and the host can deal the next one once everybody has solved it or time runs out. Each player gets 3 hints for the whole game, and the answer only shows once you solve the card or time runs out. Share the invite link and friends can join straight from their phone, no account needed.</p>
     <p>Keyboard: <kbd>1</kbd>–<kbd>4</kbd> numbers, <kbd>+</kbd> <kbd>-</kbd> <kbd>*</kbd> <kbd>/</kbd> operators, <kbd>Backspace</kbd> undo, <kbd>H</kbd> hint, <kbd>Enter</kbd> next card.</p>
   </details>
+  <footer class="credit">Made by <a href="https://github.com/granodioritee" target="_blank" rel="noopener">granodioritee</a> · <a href="https://github.com/granodioritee/make-it-24" target="_blank" rel="noopener" id="starLink">⭐ Star on GitHub</a></footer>
 </div>
 <canvas id="fx" aria-hidden="true"></canvas>
 
@@ -326,6 +331,8 @@ const DECK = RAW.map((r,k) => ({ id:k+1, key:r.slice(0,4), nums:[...r.slice(0,4)
 const LEVEL = ["", "Easy", "Medium", "Hard"];
 const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+/* analytics.js defines gaEvent; if it's blocked, tracking quietly does nothing */
+const track = (name, params) => { try { if(window.gaEvent) window.gaEvent(name, params); } catch(e){} };
 const store = {
   get(k,f){ try{ const v = localStorage.getItem(k); return v === null ? f : JSON.parse(v); }catch(e){ return f; } },
   set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
@@ -600,6 +607,7 @@ function win(i){
   const bumps = ["solved"];
   if(mode === "solo" && !revealed){ streak++; bumps.push("streak"); if(streak > best){ best = streak; store.set("m24-best", best); bumps.push("best"); } }
   if(mode === "race") raceSolved(secs);
+  else track("solo_solved", { difficulty:c.d, peeked:revealed });
   render();
   const finish = () => {
     slots[i] = null; render();
@@ -775,6 +783,7 @@ async function joinRoom(code, asHost){
     F.onValue(F.ref(F.db, roomPath("solves")), s => onSolves(s.val() || {})),
   ];
   S.join();
+  track(asHost ? "room_create" : "room_join");
   showWaiting(asHost ? "Share the invite link, then deal the first card." : "Waiting for the host to deal the first card.");
   updateModeUI();
 }
@@ -847,6 +856,7 @@ function hostDeal(){
   let pick = pool[Math.floor(Math.random() * pool.length)];
   if(meta && pick === meta.card && pool.length > 1) pick = pool[(pool.indexOf(pick) + 1) % pool.length];
   F.update(F.ref(F.db, roomPath("meta")), { host:uid, round:((meta && meta.round) || 0) + 1, card:pick, dealtAt:F.serverTimestamp() })
+    .then(() => track("round_start", { players:Object.keys(players).length }))
     .catch(e => { console.error(e); setStatus("Couldn't deal the card. Try again.", "bad"); });
 }
 function startRound(r, cardIdx, dealtAt){
@@ -859,6 +869,7 @@ function resyncTimer(){ if(mode === "race" && curRound && !won && !timedOut){ t0
 function raceSolved(){
   if(!room || !curRound) return;
   F.set(F.ref(F.db, roomPath(`solves/${curRound}/${uid}`)), F.serverTimestamp())
+    .then(() => track("race_solved"))
     .catch(e => { console.error(e); setStatus("Solved, but it didn't reach the server in time, so no points.", "bad"); });
 }
 function everyoneDone(){
@@ -943,6 +954,7 @@ $("#join").addEventListener("click", () => {
 });
 $("#codeIn").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); $("#join").click(); } });
 $("#leave").addEventListener("click", () => { tab = "friends"; leaveRoom(); });
+$("#starLink").addEventListener("click", () => track("github_click"));
 $("#copy").addEventListener("click", () => {
   const link = location.origin + location.pathname + "#" + roomCode;
   const text = `Play Make it 24 with me! Room ${roomCode.toUpperCase()}`;
