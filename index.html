@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Make it 24</title>
+<meta name="description" content="A card game: use four numbers and + − × ÷ to make 24. Play solo or race your friends.">
+<meta property="og:title" content="Make it 24">
+<meta property="og:description" content="Use four numbers and + − × ÷ to make 24. Play solo or race your friends.">
+<meta name="theme-color" content="#0E3A2D">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23F7F2E2'/%3E%3Ccircle cx='32' cy='32' r='20' fill='%23165440'/%3E%3Ctext x='32' y='40' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='%23F7F2E2'%3E24%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@75..150,500..900&family=Figtree:wght@400;500;600;700;800&display=swap">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+img{max-width:100%}
+/* Layout: a card table. One ivory 24-card dealt onto green felt from a small deck, poker-chip operators below, actions under that. Single deliberate "felt" world. */
+:root{
+  --felt:#0E3A2D; --felt-hi:#1C5C46; --felt-lo:#07241A;
+  --ivory:#F7F2E2; --ivory-2:#ECE4CC; --ink:#1B211E; --ink-soft:#6A786F;
+  --cream:#F3EEDC; --muted:#A3BDB0;
+  --gold:#E9BC45; --red:#D2483C; --blue:#2F6BB3; --chipgreen:#2E9468; --black:#25292D;
+  --card-green:#165440;
+  --f-num:"Anybody", "Arial Black", system-ui, sans-serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  margin:0;color:var(--cream);font-family:var(--f-body);font-size:15px;
+  padding:16px;padding-block:14px 32px;
+  background-color:var(--felt-lo);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.09'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 90% 60% at 50% 32%, var(--felt-hi), var(--felt) 55%, var(--felt-lo));
+  background-attachment:fixed;
+  -webkit-tap-highlight-color:transparent;
+}
+.wrap{max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mark{font-family:var(--f-num);font-weight:900;font-stretch:112%;font-size:clamp(19px,5.6vw,24px);line-height:1;letter-spacing:-.01em;margin:0;white-space:nowrap}
+.mark span{color:var(--gold)}
+.stats{display:flex;align-items:center;gap:10px}
+.stat{text-align:center;font-variant-numeric:tabular-nums;min-width:34px}
+.stat b{display:block;font-family:var(--f-num);font-stretch:110%;font-weight:800;font-size:19px;line-height:1.05}
+.stat small{display:block;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.icon-btn{width:36px;height:36px;border-radius:50%;border:1px solid rgba(243,238,220,.2);background:rgba(243,238,220,.07);color:var(--cream);display:grid;place-items:center;cursor:pointer;padding:0}
+.icon-btn svg{width:18px;height:18px}
+
+/* filters */
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.fchip{border:1px solid rgba(243,238,220,.2);background:transparent;color:var(--cream);font:600 13px var(--f-body);padding:7px 11px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .2s,color .2s}
+.fchip[aria-pressed="true"]{background:var(--cream);color:var(--ink);border-color:var(--cream)}
+.dots{display:inline-flex;gap:3px}
+.dot{width:7px;height:7px;border-radius:50%;border:1px solid rgba(0,0,0,.45);display:inline-block}
+.d1{background:#FFFFFF}.d2{background:var(--red)}.d3{background:var(--gold)}
+.meta{display:flex;justify-content:space-between;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums;margin-top:-4px}
+
+/* stage + deck */
+.stage{position:relative;width:min(100%,400px);aspect-ratio:1;margin:4px auto 10px;perspective:1300px}
+.under{position:absolute;inset:0;border-radius:22px}
+.u1{transform:translateY(7px) scale(.97)}
+.u2{transform:translateY(14px) scale(.94);opacity:.75}
+.under.cardback{background-image:none;background-color:#0C3A2C;box-shadow:inset 0 0 0 1px rgba(247,242,226,.12),0 10px 24px -10px rgba(0,0,0,.7)}
+.cardback{
+  background-color:var(--card-green);
+  background-image:repeating-linear-gradient(45deg, rgba(233,188,69,.13) 0 2px, transparent 2px 14px),repeating-linear-gradient(-45deg, rgba(233,188,69,.13) 0 2px, transparent 2px 14px);
+  box-shadow:inset 0 0 0 9px var(--card-green), inset 0 0 0 11px rgba(233,188,69,.75), 0 14px 30px -12px rgba(0,0,0,.7);
+}
+.dealer{position:absolute;inset:0;will-change:transform}
+.card{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.3,.7,.2,1)}
+.card.flipped{transform:rotateY(180deg)}
+.card.instant,.card.instant .face{transition:none!important}
+.face{position:absolute;inset:0;border-radius:22px;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden}
+.front{background:var(--ivory);box-shadow:0 18px 40px -14px rgba(0,0,0,.75),0 2px 0 rgba(0,0,0,.25);visibility:visible;transition:visibility 0s .27s,box-shadow .4s}
+.back{transform:rotateY(180deg);visibility:hidden;transition:visibility 0s .27s}
+.card.flipped .front{visibility:hidden}
+.card.flipped .back{visibility:visible}
+.card.won .front{box-shadow:0 0 0 3px var(--gold),0 0 46px rgba(233,188,69,.55),0 18px 40px -14px rgba(0,0,0,.75)}
+.print{position:absolute;inset:0;width:100%;height:100%;color:var(--card-green);opacity:.5}
+.corner{position:absolute;z-index:3;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.tl{top:7.5%;left:8%}.tr{top:6.6%;right:8%;font-size:13px;letter-spacing:.02em}
+.bl{bottom:7.2%;left:8%}.br{bottom:7.2%;right:8%;color:var(--chipgreen)}
+.timer{display:inline-flex;align-items:center;gap:4px}
+.timer svg{width:12px;height:12px}
+.timer.low{color:var(--red);animation:lowpulse 1s ease-in-out infinite}
+@keyframes lowpulse{50%{opacity:.45}}
+
+.hub{position:absolute;left:50%;top:50%;width:25%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:var(--card-green);color:var(--ivory);display:grid;place-items:center;font-family:var(--f-num);font-weight:900;font-stretch:125%;font-size:clamp(20px,6.6vw,30px);z-index:1;box-shadow:inset 0 0 0 3px var(--ivory),0 0 0 2px var(--card-green);transition:background .35s,color .35s,transform .45s cubic-bezier(.2,.9,.3,1.4)}
+.hub::before{content:"";position:absolute;inset:-9px;border-radius:50%;border:1.5px dashed rgba(22,84,64,.45);animation:spin 30s linear infinite}
+.hub::after{content:"";position:absolute;inset:0;border-radius:50%;border:3px solid var(--gold);opacity:0}
+.hub.win{background:var(--gold);color:var(--ink);transform:translate(-50%,-50%) scale(1.16);box-shadow:inset 0 0 0 3px var(--ivory),0 0 0 2px var(--gold)}
+.hub.win::after{animation:wave 1.1s ease-out 2}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes wave{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(2.6)}}
+
+.slot{position:absolute;width:26%;aspect-ratio:1;transform:translate(-50%,-50%);z-index:2}
+.s0{left:50%;top:19.5%}.s1{left:80.5%;top:50%}.s2{left:50%;top:80.5%}.s3{left:19.5%;top:50%}
+.num{position:relative;width:100%;height:100%;border-radius:18px;border:0;background:var(--ivory-2);color:var(--ink);font-family:var(--f-num);font-weight:800;font-stretch:118%;font-size:clamp(28px,9.6vw,43px);cursor:pointer;display:grid;place-items:center;padding:0;font-variant-numeric:tabular-nums;
+  box-shadow:inset 0 -4px 0 rgba(27,33,30,.1),inset 0 1px 0 rgba(255,255,255,.8),0 2px 3px rgba(27,33,30,.12);transition:transform .18s cubic-bezier(.2,.9,.3,1.3),background .18s,box-shadow .18s}
+.num.mid{font-size:clamp(24px,8vw,36px);font-stretch:100%}
+.num.long{font-size:clamp(18px,6vw,27px);font-stretch:85%}
+.num.isfrac{font-size:clamp(17px,5.6vw,24px);font-stretch:95%}
+.num.sel{background:var(--gold);transform:translateY(-5px) scale(1.04);box-shadow:inset 0 -4px 0 rgba(0,0,0,.12),0 12px 18px -8px rgba(0,0,0,.45)}
+.num.hinted:not(.sel){animation:hintpulse 1.1s ease-in-out infinite}
+@keyframes hintpulse{0%,100%{box-shadow:0 0 0 0 rgba(233,188,69,.0),inset 0 -4px 0 rgba(27,33,30,.1)}50%{box-shadow:0 0 0 5px rgba(233,188,69,.85),inset 0 -4px 0 rgba(27,33,30,.1)}}
+.badge{position:absolute;top:-9px;right:-9px;width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--ivory);font:700 17px/28px var(--f-body);text-align:center;box-shadow:0 3px 8px rgba(0,0,0,.3)}
+.frac{display:inline-flex;align-items:center;gap:2px}
+.fs{display:inline-flex;flex-direction:column;align-items:center;line-height:1}
+.fs .t{border-bottom:2.5px solid currentColor;padding:0 3px 3px}
+.fs .b{padding-top:3px}
+
+.backin{position:absolute;inset:11%;border-radius:14px;background:var(--card-green);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;text-align:center;box-shadow:0 0 0 1px rgba(233,188,69,.5)}
+.backin .lbl{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.backin .expr{font-family:var(--f-num);font-weight:700;font-stretch:95%;font-size:clamp(21px,6.6vw,30px);line-height:1.25;color:var(--ivory);overflow-wrap:anywhere}
+.backin .eq{font-family:var(--f-num);font-weight:900;font-stretch:130%;font-size:clamp(28px,9vw,40px);color:var(--gold)}
+.backin .bno{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+/* status */
+.status-wrap{min-height:46px;text-align:center;display:flex;flex-direction:column;justify-content:center;gap:3px}
+#status{font-size:15px;font-weight:600;color:var(--cream)}
+#status.good{color:var(--gold);font-size:17px;font-weight:800}
+#status.bad{color:#F39A8F}
+#trail{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;min-height:16px}
+
+/* operator chips */
+.ops{display:flex;justify-content:space-between;gap:8px;padding:0 4px}
+.chip{--c:var(--red);position:relative;width:clamp(58px,17.5vw,70px);aspect-ratio:1;border-radius:50%;border:0;padding:0;background:var(--c);cursor:pointer;
+  box-shadow:0 5px 0 rgba(0,0,0,.4),0 10px 16px -6px rgba(0,0,0,.6);transition:transform .16s cubic-bezier(.2,.9,.3,1.4),box-shadow .16s,opacity .2s}
+.chip::before{content:"";position:absolute;inset:3px;border-radius:50%;border:5px dashed rgba(247,242,226,.92)}
+.chip .in{position:absolute;inset:23%;border-radius:50%;background:var(--ivory);color:var(--c);display:grid;place-items:center;font:800 27px/1 var(--f-body);box-shadow:inset 0 0 0 2px var(--c),0 1px 2px rgba(0,0,0,.25)}
+.chip[data-op="-"]{--c:var(--blue)}.chip[data-op="*"]{--c:var(--chipgreen)}.chip[data-op="/"]{--c:var(--black)}
+.chip:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.4)}
+.chip[aria-pressed="true"]{transform:translateY(-6px);box-shadow:0 11px 0 rgba(0,0,0,.3),0 0 0 3px var(--gold),0 0 24px rgba(233,188,69,.65)}
+.chip.hinted{animation:chippulse 1.1s ease-in-out infinite}
+@keyframes chippulse{0%,100%{box-shadow:0 5px 0 rgba(0,0,0,.4),0 0 0 0 rgba(233,188,69,0)}50%{box-shadow:0 5px 0 rgba(0,0,0,.4),0 0 0 6px rgba(233,188,69,.8)}}
+.chip:disabled{opacity:.35;cursor:default}
+
+/* actions */
+.actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.act{height:56px;border-radius:14px;border:1px solid rgba(243,238,220,.18);background:rgba(243,238,220,.07);color:var(--cream);font:600 12.5px var(--f-body);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:background .15s,transform .1s}
+.act svg{width:19px;height:19px}
+.act:active:not(:disabled){transform:scale(.95);background:rgba(243,238,220,.14)}
+.act:disabled{opacity:.35;cursor:default}
+.next{height:54px;border-radius:16px;border:1.5px solid rgba(243,238,220,.35);background:transparent;color:var(--cream);font:700 16px var(--f-body);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .25s,color .25s,border-color .25s}
+.next svg{width:18px;height:18px}
+.next.ready{background:var(--gold);color:var(--ink);border-color:var(--gold);animation:ready 1.6s ease-in-out infinite}
+@keyframes ready{0%,100%{box-shadow:0 0 0 0 rgba(233,188,69,.5)}50%{box-shadow:0 0 0 8px rgba(233,188,69,0)}}
+
+details{border-top:1px solid rgba(243,238,220,.14);padding-top:12px;color:var(--muted);font-size:13.5px;line-height:1.55}
+summary{cursor:pointer;color:var(--cream);font-weight:700;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::after{content:" +";color:var(--gold)}
+details[open] summary::after{content:" −"}
+details p{margin:8px 0 0}
+kbd{font:600 11px var(--f-body);border:1px solid rgba(243,238,220,.3);border-radius:4px;padding:1px 5px;color:var(--cream)}
+
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important}
+  .card,.num,.hub,.chip{transition:none!important}
+}
+
+/* multiplayer */
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:14px;background:rgba(0,0,0,.22)}
+.mode{height:40px;border:0;border-radius:10px;background:transparent;color:var(--muted);font:700 14px var(--f-body);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .2s,color .2s}
+.mode svg{width:17px;height:17px}
+.mode[aria-pressed="true"]{background:var(--cream);color:var(--ink)}
+.panel{border-radius:18px;background:rgba(0,0,0,.2);border:1px solid rgba(243,238,220,.12);padding:14px;display:flex;flex-direction:column;gap:12px}
+.panel h2{margin:0;font:800 15px var(--f-body)}
+.panel p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.inp{height:44px;border-radius:12px;border:1px solid rgba(243,238,220,.22);background:rgba(243,238,220,.06);color:var(--cream);font:600 16px var(--f-body);padding:0 12px;min-width:0;width:100%}
+.inp::placeholder{color:rgba(163,189,176,.7)}
+.inp:focus{outline:2px solid var(--gold);outline-offset:1px}
+.inp.code{text-transform:uppercase;letter-spacing:.25em;font-family:var(--f-num);font-weight:800}
+.joinrow{display:grid;grid-template-columns:1fr auto;gap:8px}
+.btn{height:44px;border-radius:12px;border:1px solid rgba(243,238,220,.25);background:rgba(243,238,220,.08);color:var(--cream);font:700 14px var(--f-body);padding:0 16px;cursor:pointer;white-space:nowrap}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:var(--ink)}
+.btn:disabled{opacity:.4;cursor:default}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:rgba(243,238,220,.14)}
+.lmsg{font-size:13px;color:#F39A8F;min-height:0}
+.roombar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.rcode{display:flex;flex-direction:column;gap:2px}
+.rcode small{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.rcode b{font-family:var(--f-num);font-weight:900;font-stretch:120%;font-size:26px;letter-spacing:.14em;line-height:1;color:var(--gold);user-select:all}
+.rbtns{display:flex;gap:6px}
+.rbtns .btn{height:38px;padding:0 12px;font-size:13px}
+.players{display:flex;flex-wrap:wrap;gap:6px}
+.pl{display:inline-flex;align-items:center;gap:7px;padding:6px 10px 6px 7px;border-radius:999px;background:rgba(243,238,220,.08);border:1px solid transparent;font-size:13.5px;font-weight:600;max-width:100%;transition:opacity .2s}
+.pl .sw{width:20px;height:20px;border-radius:50%;flex:none;display:grid;place-items:center;color:var(--ink);font:800 10px var(--f-body)}
+.pl .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px}
+.pl .sc{font-family:var(--f-num);font-weight:800;font-stretch:110%;font-variant-numeric:tabular-nums}
+.pl .tagx{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.pl .pl-place{font-size:10.5px;font-weight:800;padding:2px 6px;border-radius:999px;background:var(--gold);color:var(--ink)}
+.pl.me{border-color:rgba(233,188,69,.7)}
+.pl.gone{opacity:.45}
+.takeover{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted)}
+.next:disabled{opacity:.5;cursor:default}
+.conn{display:flex;align-items:flex-start;gap:7px;font-size:12.5px;line-height:1.45;color:var(--muted)}
+.conn::before{content:"";flex:none;width:8px;height:8px;margin-top:5px;border-radius:50%;background:var(--muted)}
+.conn[data-k="ok"]::before{background:#57C08A;box-shadow:0 0 0 3px rgba(87,192,138,.2)}
+.conn[data-k="bad"]{color:#F39A8F}.conn[data-k="bad"]::before{background:var(--red)}
+.conn[data-k="wait"]::before{background:var(--gold)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1 class="mark">MAKE IT <span>24</span></h1>
+    <div class="stats">
+      <div class="stat"><b id="solved">0</b><small>Solved</small></div>
+      <div class="stat"><b id="streak">0</b><small>Streak</small></div>
+      <div class="stat"><b id="best">0</b><small>Best</small></div>
+      <button class="icon-btn" id="sound" type="button" aria-label="Sound on" aria-pressed="true"></button>
+    </div>
+  </header>
+
+  <div class="modes" role="group" aria-label="Game mode">
+    <button class="mode" type="button" id="modeSolo" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Solo</button>
+    <button class="mode" type="button" id="modeFriends" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.8"/><path d="M16 14.2a5.5 5.5 0 0 1 6 5.8"/></svg>With friends</button>
+  </div>
+
+  <section class="panel" id="lobby" hidden>
+    <h2>Race your friends</h2>
+    <p>Everyone gets the same card and 5 minutes to solve it. First to make 24 scores 3 points, second gets 2, everyone else who solves it gets 1. Run out of time and you get 0 and see the answer. Each player has 3 hints for the whole game.</p>
+    <div class="field"><label for="nick">Your name</label><input class="inp" id="nick" maxlength="16" placeholder="e.g. Nate" autocomplete="off"></div>
+    <button class="btn gold" type="button" id="create">Create a room</button>
+    <div class="or">or join one</div>
+    <div class="joinrow"><input class="inp code" id="codeIn" maxlength="4" placeholder="CODE" autocomplete="off" aria-label="Room code"><button class="btn" type="button" id="join">Join</button></div>
+    <div class="lmsg" id="lmsg"></div>
+    <div class="conn"></div>
+  </section>
+
+  <section class="panel" id="roomPanel" hidden>
+    <div class="roombar">
+      <div class="rcode"><small>Room code</small><b id="rcode">----</b></div>
+      <div class="rbtns"><button class="btn" type="button" id="copy">Invite</button><button class="btn" type="button" id="leave">Leave</button></div>
+    </div>
+    <div class="players" id="players" aria-live="polite"></div>
+    <div class="conn"></div>
+  </section>
+
+  <div class="filters" id="filters" role="group" aria-label="Difficulty">
+    <button class="fchip" type="button" data-f="0" aria-pressed="true">All</button>
+    <button class="fchip" type="button" data-f="1" aria-pressed="false"><span class="dots"><i class="dot d1"></i></span>Easy</button>
+    <button class="fchip" type="button" data-f="2" aria-pressed="false"><span class="dots"><i class="dot d2"></i><i class="dot d2"></i></span>Medium</button>
+    <button class="fchip" type="button" data-f="3" aria-pressed="false"><span class="dots"><i class="dot d3"></i><i class="dot d3"></i><i class="dot d3"></i></span>Hard</button>
+  </div>
+  <div class="meta"><span id="pos">Card 1 of 1,362</span><span id="lvl">Easy</span></div>
+
+  <div class="stage" id="stage">
+    <div class="under u2 cardback"></div>
+    <div class="under u1 cardback"></div>
+    <div class="dealer" id="dealer">
+      <div class="card" id="card">
+        <div class="face front">
+          <svg class="print" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <rect x="3.2" y="3.2" width="93.6" height="93.6" rx="5" fill="none" stroke="currentColor" stroke-width=".55"/>
+            <rect x="4.6" y="4.6" width="90.8" height="90.8" rx="4" fill="none" stroke="currentColor" stroke-width=".25"/>
+            <polygon points="50,19.5 80.5,50 50,80.5 19.5,50" fill="none" stroke="currentColor" stroke-width=".45" stroke-dasharray="1.3 1.3"/>
+          </svg>
+          <span class="corner tl dots" id="cdots"></span>
+          <span class="corner tr timer"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="8" cy="9" r="5.5"/><path d="M8 6v3l2 1.5M6.5 1.5h3"/></svg><span id="timer">0:00</span></span>
+          <span class="corner bl" id="cardno">No. 0001</span>
+          <span class="corner br" id="tag" hidden>Solved before</span>
+          <div class="hub" id="hub">24</div>
+          <div class="slot s0"></div><div class="slot s1"></div><div class="slot s2"></div><div class="slot s3"></div>
+        </div>
+        <div class="face back cardback">
+          <div class="backin">
+            <div class="lbl" id="blbl">One way to make 24</div>
+            <div class="expr" id="expr"></div>
+            <div class="eq" id="beq">= 24</div>
+            <div class="bno" id="bno"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-wrap" aria-live="polite">
+    <div id="status">Tap a number, pick an operator, then tap another number.</div>
+    <div id="trail"></div>
+  </div>
+
+  <div class="ops" role="group" aria-label="Operators">
+    <button class="chip" type="button" data-op="+" aria-pressed="false" aria-label="Add"><span class="in">+</span></button>
+    <button class="chip" type="button" data-op="-" aria-pressed="false" aria-label="Subtract"><span class="in">−</span></button>
+    <button class="chip" type="button" data-op="*" aria-pressed="false" aria-label="Multiply"><span class="in">×</span></button>
+    <button class="chip" type="button" data-op="/" aria-pressed="false" aria-label="Divide"><span class="in">÷</span></button>
+  </div>
+
+  <div class="actions">
+    <button class="act" type="button" id="undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Undo</button>
+    <button class="act" type="button" id="reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Reset</button>
+    <button class="act" type="button" id="hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg><span id="hintLbl">Hint</span></button>
+    <button class="act" type="button" id="flip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Answer</span></button>
+  </div>
+
+  <button class="next" type="button" id="next"><span>Skip card</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+
+  <details>
+    <summary>How to play</summary>
+    <p>Combine two numbers with + − × ÷ and the result takes their place. Keep going until one number is left. Make it 24 and the card is yours.</p>
+    <p>There are 1,362 cards using numbers 1 to 13, and every one has a solution. The dots in the corner show difficulty, like the original 24 cards. Hints show the next move, but peeking at the answer resets your streak.</p>
+    <p>With friends: one person creates a room and shares the code. Everyone races on the same card with a 5 minute limit, and the host can deal the next one once everybody has solved it or time runs out. Each player gets 3 hints for the whole game, and the answer only shows once you solve the card or time runs out. Share the invite link and friends can join straight from their phone, no account needed.</p>
+    <p>Keyboard: <kbd>1</kbd>–<kbd>4</kbd> numbers, <kbd>+</kbd> <kbd>-</kbd> <kbd>*</kbd> <kbd>/</kbd> operators, <kbd>Backspace</kbd> undo, <kbd>H</kbd> hint, <kbd>Enter</kbd> next card.</p>
+  </details>
+</div>
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<script src="firebase-config.js"></script>
+<script>
+const RAW = ["111838 × (1 + 1 + 1)","111b3(1 + 1) × (1 + 11)","111c2(1 + 1) × 1 × 12","111d3(1 + 1) × (13 − 1)","11263(1 + 1) × 2 × 6","11273(1 + 2) × (1 + 7)","112818 × (2 + 1 × 1)","11293(1 + 2) × (9 − 1)","112a32 × (10 + 1 + 1)","112b11 + 1 + 2 × 11","112c11 × 1 × 2 × 12","112d12 × 13 − 1 − 1","11343(1 + 1) × 3 × 4","11353(1 + 3) × (1 + 5)","113613 × (6 + 1 + 1)","113713 × (7 + 1 × 1)","113811 × 1 × 3 × 8","113913 × (9 − 1 × 1)","113a33 × (10 − 1 − 1)","113b3(3 − 1) × (1 + 11)","113c112 × (3 − 1 × 1)","113d3(1 − 3) × (1 − 13)","114434 × (4 + 1 + 1)","114514 × (5 + 1 × 1)","114611 × 1 × 4 × 6","114714 × (7 − 1 × 1)","114818 × (4 − 1 × 1)","11493(1 − 4) × (1 − 9)","114a34 + 10 × (1 + 1)","114c24 × 12 ÷ (1 + 1)","115525 × 5 − 1 × 1","115616 × (5 − 1 × 1)","11572(1 + 1) × (5 + 7)","115838 × (5 − 1 − 1)","116636 × (6 − 1 − 1)","116836 × 8 ÷ (1 + 1)","116936 + 9 × (1 + 1)","116c312 + 6 × (1 + 1)","117a310 + 7 × (1 + 1)","118838 + 8 × (1 + 1)","119d21 + 1 + 9 + 13","11ac21 + 1 + 10 + 12","11ad11 × 1 + 10 + 13","11bb31 + 1 + 11 + 11","11bc11 × 1 + 11 + 12","11bd113 + 11 × 1 × 1","11cc112 + 12 × 1 × 1","11cd112 + 13 − 1 × 1","11dd213 − 1 + 13 − 1","12243(1 + 2) × 2 × 4","12253(1 + 5) × 2 × 2","122611 × 2 × 2 × 6","12273(7 − 1) × 2 × 2","122838 × (2 + 2 − 1)","122932 × (9 + 1 + 2)","122a11 × 2 × (2 + 10)","122b11 × 2 + 2 × 11","122c1(2 − 1) × 2 × 12","122d12 × 13 − 1 × 2","12333(1 + 3) × 2 × 3","123411 × 2 × 3 × 4","123523 × (5 + 1 + 2)","123613 × (6 + 1 × 2)","123721 + 2 + 3 × 7","12381(2 − 1) × 3 × 8","123913 × 9 − 1 − 2","123a11 + 3 + 2 × 10","123b13 − 1 + 2 × 11","123c212 × (3 + 1 − 2)","123d21 − 3 + 2 × 13","124414 × (4 + 1 × 2)","124524 × (5 + 2 − 1)","12462(2 − 1) × 4 × 6","124724 × (7 + 1 − 2)","124811 × 2 × (4 + 8)","124922 × (9 + 4 − 1)","124a14 + 10 × 1 × 2","124b2(1 + 11) × 4 ÷ 2","124c11 × 4 × 12 ÷ 2","124d22 × (1 + 13) − 4","125531 − 2 + 5 × 5","125626 × (5 + 1 − 2)","125711 × 2 × (5 + 7)","125818 × (5 − 1 × 2)","125921 + 5 + 2 × 9","125a25 − 1 + 2 × 10","125c212 + 2 × (1 + 5)","125d31 + 13 + 2 × 5","126616 + 6 × (1 + 2)","126712 × (7 + 6 − 1)","126811 × 6 × 8 ÷ 2","126916 + 9 × 1 × 2","126a310 × (1 + 2) − 6","126b31 + 11 + 2 × 6","126c112 + 6 × 1 × 2","126d313 − 1 + 2 × 6","12773(7 × 7 − 1) ÷ 2","127821 + 7 + 2 × 8","127927 − 1 + 2 × 9","127a110 + 7 × 1 × 2","127b311 − 1 + 2 × 7","127c312 − 2 × (1 − 7)","128818 + 8 × 1 × 2","128919 − 1 + 2 × 8","128a310 − 2 × (1 − 8)","128d11 + 2 + 8 + 13","129b311 × (1 + 2) − 9","129c11 + 2 + 9 + 12","129d11 × 2 + 9 + 13","12ab11 + 2 + 10 + 11","12ac11 × 2 + 10 + 12","12ad12 − 1 + 10 + 13","12bb11 × 2 + 11 + 11","12bc12 − 1 + 11 + 12","12bd113 − 11 × (1 − 2)","12cc212 × (1 + 2) − 12","12cd11 − 2 + 12 + 13","12dd113 + 13 − 1 × 2","133333 × (3 × 3 − 1)","133413 × (4 + 1 + 3)","133511 × 3 × (3 + 5)","133633 × (6 + 3 − 1)","133711 × 3 + 3 × 7","133833 × (1 + 8) − 3","133913 × 9 − 1 × 3","133a33 × (10 + 1 − 3)","133b11 × 3 × (11 − 3)","133c312 + 3 × (1 + 3)","134411 × 3 × (4 + 4)","134521 + 3 + 4 × 5","134636 ÷ (1 − 3 ÷ 4)","134714 − 1 + 3 × 7","134828 + 4 × (1 + 3)","134911 − 4 + 3 × 9","134a24 − 10 × (1 − 3)","134b11 + 11 + 3 × 4","134c112 + 4 × 1 × 3","134d213 − 1 + 3 × 4","135631 + 5 + 3 × 6","13573(3 − 1) × (5 + 7)","135821 + 8 + 3 × 5","135919 + 5 × 1 × 3","135a210 − 1 + 3 × 5","135b3(1 + 3) × (11 − 5)","135c112 × (5 − 1 × 3)","135d11 × 3 × (13 − 5)","136616 + 6 × 1 × 3","136717 − 1 + 3 × 6","136818 × (6 − 1 × 3)","136926 − 9 × (1 − 3)","136a110 × 1 × 3 − 6","136b2(1 + 11) × 6 ÷ 3","136c11 × 6 × 12 ÷ 3","136d23 × (13 + 1 − 6)","13773(1 − 7) × (3 − 7)","137838 × (7 − 1 − 3)","13793(1 + 7) × 9 ÷ 3","137a21 − 7 + 3 × 10","137c3(7 − 1) × 12 ÷ 3","137d11 + 3 + 7 + 13","138828 × (1 + 3) − 8","138911 × 8 × 9 ÷ 3","138a38 × (10 − 1) ÷ 3","138b33 × 11 − 1 − 8","138c11 + 3 + 8 + 12","138d11 × 3 + 8 + 13","13993(9 − 1) × 9 ÷ 3","139a33 × (1 + 10) − 9","139b11 + 3 + 9 + 11","139c11 × 3 + 9 + 12","139d13 − 1 + 9 + 13","13aa21 + 3 + 10 + 10","13ab11 × 3 + 10 + 11","13ac13 − 1 + 10 + 12","13bb13 − 1 + 11 + 11","13bc33 × 12 − 1 − 11","13cc112 × 1 × 3 − 12","13cd21 − 13 + 3 × 12","13dd11 − 3 + 13 + 13","144434 + 4 × (1 + 4)","144511 × 4 + 4 × 5","144634 × (1 + 6) − 4","144714 × 7 − 1 × 4","144818 + 4 × 1 × 4","144929 − 1 + 4 × 4","144a11 × 4 × (10 − 4)","144b34 × (11 − 1 − 4)","144c212 − 4 × (1 − 4)","145525 − 1 + 4 × 5","145636 ÷ (5 ÷ 4 − 1)","145721 − 5 + 4 × 7","145838 − 4 × (1 − 5)","145939 − 5 × (1 − 4)","145a24 × (10 + 1 − 5)","145b11 × 4 × (11 − 5)","145c212 × (5 + 1 − 4)","145d3(1 − 4) × (5 − 13)","146636 × (1 + 4) − 6","146736 × (7 + 1 − 4)","146816 × (8 − 1 × 4)","146936 × (9 − 1 − 4)","146a310 × (4 − 1) − 6","146b24 × (11 + 1 − 6)","146c11 × 4 × (12 − 6)","146d11 + 4 + 6 + 13","14773(1 + 7) × (7 − 4)","147814 × 8 − 1 − 7","14793(1 − 9) × (4 − 7)","147b37 × (1 + 4) − 11","147c11 + 4 + 7 + 12","147d11 × 4 + 7 + 13","148818 × 1 × 4 − 8","148921 − 9 + 4 × 8","148b11 + 4 + 8 + 11","148c11 × 4 + 8 + 12","148d14 − 1 + 8 + 13","149a11 + 4 + 9 + 10","149b11 × 4 + 9 + 11","149c19 × 1 × 4 − 12","149d31 − 13 + 4 × 9","14aa11 × 4 + 10 + 10","14ab14 − 1 + 10 + 11","14ac210 × 12 ÷ (1 + 4)","14cc312 × (4 − 1) − 12","155535 × (5 − 1 ÷ 5)","155635 × 6 − 1 − 5","15593(1 + 5) × (9 − 5)","155a35 × (10 − 5) − 1","155b3(1 − 5) × (5 − 11)","155c312 × (1 + 5 ÷ 5)","155d21 + 5 + 5 + 13","156616 × 1 × 5 − 6","156721 − 7 + 5 × 6","156836 × (8 + 1 − 5)","156916 × (9 − 1 × 5)","156a36 × (10 − 1 − 5)","156b35 × (1 + 6) − 11","156c11 + 5 + 6 + 12","156d11 × 5 + 6 + 13","157828 × (7 + 1 − 5)","15793(1 − 7) × (5 − 9)","157a35 × 7 − 1 − 10","157b11 + 5 + 7 + 11","157c11 × 5 + 7 + 12","157d15 − 1 + 7 + 13","158818 × (8 − 1 × 5)","158928 × (9 − 1 − 5)","158a11 + 5 + 8 + 10","158b11 × 5 + 8 + 11","158c15 − 1 + 8 + 12","158d35 × (13 − 8) − 1","159921 + 5 + 9 + 9","159a11 × 5 + 9 + 10","159b15 − 1 + 9 + 11","159c29 × (5 − 1) − 12","159d3(1 + 5) × (13 − 9)","15aa15 − 1 + 10 + 10","15ab3(1 + 11) × 10 ÷ 5","15ac112 × 1 × 10 ÷ 5","15ad3(13 − 1) × 10 ÷ 5","15bb3(11 × 11 − 1) ÷ 5","15bc312 × (11 − 1) ÷ 5","15cc312 × 12 ÷ (1 + 5)","166636 × (6 − 1) − 6","166836 ÷ (1 − 6 ÷ 8)","166936 × (9 + 1 − 6)","166a11 × 6 × (10 − 6)","166b11 + 6 + 6 + 11","166c11 × 6 + 6 + 12","166d16 − 1 + 6 + 13","16793(1 + 7) × (9 − 6)","167a11 + 6 + 7 + 10","167b11 × 6 + 7 + 11","167c16 − 1 + 7 + 12","168838 × (8 + 1 − 6)","168911 + 6 + 8 + 9","168a11 × 6 + 8 + 10","168b16 − 1 + 8 + 11","168c11 × 6 × (12 − 8)","168d26 × (13 − 1 − 8)","169911 × 6 + 9 + 9","169a16 − 1 + 9 + 10","169c26 × (12 + 1 − 9)","169d11 × 6 × (13 − 9)","16ac310 × 12 ÷ (6 − 1)","16ad36 × (13 + 1 − 10)","16bc3(1 + 11) × 12 ÷ 6","16bd3(1 + 11 × 13) ÷ 6","16cc11 × 12 × 12 ÷ 6","16cd3(13 − 1) × 12 ÷ 6","177921 + 7 + 7 + 9","177a11 × 7 + 7 + 10","177b17 − 1 + 7 + 11","177c312 × (1 + 7 ÷ 7)","178821 + 7 + 8 + 8","178911 × 7 + 8 + 9","178a17 − 1 + 8 + 10","178b38 × (11 − 1 − 7)","178c212 × (8 + 1 − 7)","179917 − 1 + 9 + 9","179a3(1 − 9) × (7 − 10)","179b3(1 + 11) × (9 − 7)","179c112 × (9 − 1 × 7)","179d2(1 − 7) × (9 − 13)","17ac312 × (10 − 1 − 7)","17ad3(1 + 7) × (13 − 10)","17cc312 × 12 ÷ (7 − 1)","17cd312 × (1 + 13) ÷ 7","17dd3(13 × 13 − 1) ÷ 7","188821 × 8 + 8 + 8","188918 − 1 + 8 + 9","188a38 × (10 + 1 − 8)","188b11 × 8 × (11 − 8)","188c38 × (12 − 1 − 8)","189b28 × (11 + 1 − 9)","189c11 × 8 × (12 − 9)","189d38 × (13 − 1 − 9)","18ab3(1 + 11) × (10 − 8)","18ac112 × (10 − 1 × 8)","18ad11 × 8 × (13 − 10)","18bc312 × (11 − 1 − 8)","18bd38 × (13 + 1 − 11)","18cc312 ÷ (12 ÷ 8 − 1)","199c312 × (1 + 9 ÷ 9)","19ac312 × (10 + 1 − 9)","19ad3(1 − 9) × (10 − 13)","19bb3(1 + 11) × (11 − 9)","19bc112 × (11 − 1 × 9)","19bd3(1 − 13) × (9 − 11)","19cc312 × (12 − 1 − 9)","1aac312 × (1 + 10 ÷ 10)","1abc212 × (11 + 1 − 10)","1acc112 × (12 − 1 × 10)","1acd212 × (13 − 1 − 10)","1bbc312 × (1 + 11 ÷ 11)","1bbd3(1 + 11) × (13 − 11)","1bcc312 × (12 + 1 − 11)","1bcd112 × (13 − 1 × 11)","1bdd3(1 − 13) × (11 − 13)","1ccc312 × (1 + 12 ÷ 12)","1ccd312 × (13 + 1 − 12)","1cdd312 × (1 + 13 ÷ 13)","222322 × 2 × 2 × 3","222424 × (2 + 2 + 2)","222532 × (2 + 2 × 5)","222732 × (2 × 7 − 2)","222822 × (8 + 2 + 2)","222932 + 2 × (2 + 9)","222a32 + 2 + 2 × 10","222b32 × (11 + 2 ÷ 2)","222c12 × 2 × 12 ÷ 2","222d32 × (13 − 2 ÷ 2)","223332 × 2 × (3 + 3)","223433 × (4 + 2 + 2)","223533 × (2 × 5 − 2)","223626 × (3 + 2 ÷ 2)","223733 × (7 + 2 ÷ 2)","223812 − 2 + 3 × 8","223922 × 3 + 2 × 9","223a32 × (3 + 10) − 2","223b32 × (11 + 3 − 2)","223c112 + 3 × 2 × 2","223d32 × (13 + 2 − 3)","224434 × (2 × 4 − 2)","224512 + 2 + 4 × 5","224612 − 2 + 4 × 6","224724 × 7 − 2 × 2","224818 + 4 × 2 × 2","224932 + 4 + 2 × 9","224a12 × 2 × (10 − 4)","224b14 − 2 + 2 × 11","224c312 + 2 × (2 + 4)","224d12 − 4 + 2 × 13","225535 × 5 − 2 ÷ 2","225636 × (5 − 2 ÷ 2)","225732 × 5 + 2 × 7","225832 × (5 + 8) − 2","225932 × (9 + 5 − 2)","225a210 + 2 × (2 + 5)","225b32 × 2 × (11 − 5)","225c32 × 5 + 2 + 12","226622 × 6 + 2 × 6","226736 + 2 × (2 + 7)","226812 + 6 + 2 × 8","226932 × (9 + 6 ÷ 2)","226a12 × 6 + 2 + 10","226b36 − 2 × (2 − 11)","226c12 × 2 × (12 − 6)","226d32 × (2 + 13) − 6","227732 × (7 + 7 − 2)","227822 × 7 + 2 + 8","227a32 × (7 + 10 ÷ 2)","227c32 × 7 + 12 − 2","227d12 + 2 + 7 + 13","228828 × 2 × 2 − 8","228938 − 2 + 2 × 9","228a12 × 8 + 10 − 2","228c12 + 2 + 8 + 12","229a310 − 2 × (2 − 9)","229b22 + 2 + 9 + 11","229c39 × 2 × 2 − 12","22aa22 + 2 + 10 + 10","22ab32 × (2 × 11 − 10)","22ad32 ÷ 2 + 10 + 13","22bb311 × (2 + 2 ÷ 11)","22bc32 ÷ 2 + 11 + 12","22bd12 − 2 + 11 + 13","22cc12 − 2 + 12 + 12","22cd312 + 13 − 2 ÷ 2","22dd313 × (2 − 2 ÷ 13)","233333 × (3 + 2 + 3)","233533 + 3 × (2 + 5)","233622 × 3 + 3 × 6","233722 × 3 × (7 − 3)","233818 × (2 × 3 − 3)","233922 × 9 + 3 + 3","233a33 × 10 − 2 × 3","233b33 × (11 − 2) − 3","233c12 × 3 × 12 ÷ 3","233d12 + 13 + 3 × 3","234414 ÷ 2 × 3 × 4","234524 × (5 + 3 − 2)","234612 + 4 + 3 × 6","234724 × (7 + 2 − 3)","234822 × 3 × (8 − 4)","234912 × 4 × 9 ÷ 3","234a12 + 10 + 3 × 4","234b24 × (11 − 2 − 3)","234c112 × (2 × 3 − 4)","234d22 × 4 + 3 + 13","235522 − 3 + 5 × 5","235615 × 6 − 2 × 3","235725 − 2 + 3 × 7","235832 × 8 + 3 + 5","235922 − 5 + 3 × 9","235a22 × (10 + 5 − 3)","235b12 × 5 + 3 + 11","235c312 ÷ (3 − 5 ÷ 2)","235d22 × 3 + 5 + 13","236612 × 6 × 6 ÷ 3","236726 ÷ 2 + 3 × 7","236828 − 2 + 3 × 6","236912 × 6 + 3 + 9","236a12 × 3 × (10 − 6)","236b12 × 11 + 6 ÷ 3","236c12 × 3 + 6 + 12","236d12 + 3 + 6 + 13","237732 × 7 + 3 + 7","237818 × (2 + 7) ÷ 3","237929 − 3 × (2 − 7)","237a22 × 10 + 7 − 3","237b22 × 3 + 7 + 11","237c12 + 3 + 7 + 12","237d22 × 7 + 13 − 3","238823 × (2 × 8 − 8)","238928 × (9 − 2 × 3)","238a22 × 3 + 8 + 10","238b12 + 3 + 8 + 11","238c112 + 3 × 8 ÷ 2","238d32 × (3 + 13) − 8","239922 × 3 + 9 + 9","239a12 + 3 + 9 + 10","239c312 − 2 × (3 − 9)","239d32 × 3 × (13 − 9)","23aa310 − 2 × (3 − 10)","23ac12 × 10 + 12 ÷ 3","23ad13 − 2 + 10 + 13","23bb32 − 11 + 3 × 11","23bc13 − 2 + 11 + 12","23bd113 − 11 × (2 − 3)","23cc112 ÷ 2 × 12 ÷ 3","23cd12 − 3 + 12 + 13","23dd33 × 13 − 2 − 13","244422 × 4 + 4 × 4","244534 × (2 + 5) − 4","244622 + 6 + 4 × 4","244732 × 4 × (7 − 4)","244814 × 8 − 2 × 4","244934 × (9 − 2) − 4","244a14 + 10 × 4 ÷ 2","244b32 × (11 + 4 ÷ 4)","244c12 × 4 + 4 + 12","244d32 × (13 − 4 ÷ 4)","245534 + 2 × (5 + 5)","245616 − 2 + 4 × 5","245724 ÷ 2 × (5 + 7)","245818 ÷ 2 + 4 × 5","245924 × (9 + 2 − 5)","245a32 × 5 + 4 + 10","245b22 × 4 + 5 + 11","245c112 − 4 × (2 − 5)","245d12 + 4 + 5 + 13","246616 × (6 + 2 − 4)","246712 − 6 + 4 × 7","246812 × 6 + 4 + 8","246916 + 9 × 4 ÷ 2","246a12 × 4 + 6 + 10","246b22 × 11 + 6 − 4","246c12 + 4 + 6 + 12","246d22 × 13 + 4 − 6","247732 × (7 + 7) − 4","247824 × 7 − 8 ÷ 2","247922 × 4 + 7 + 9","247a110 + 7 × 4 ÷ 2","247b12 + 4 + 7 + 11","247c34 × (2 + 7) − 12","248812 × 4 + 8 + 8","248938 × (9 − 2 − 4)","248a12 + 4 + 8 + 10","248b22 × 11 + 8 ÷ 4","248c12 × 8 + 12 − 4","248d32 × 13 − 8 ÷ 4","249922 + 4 + 9 + 9","249a22 × 9 + 10 − 4","249c22 × 4 × (12 − 9)","249d14 − 2 + 9 + 13","24aa310 × (2 + 4 ÷ 10)","24ab34 × 11 − 2 × 10","24ac14 − 2 + 10 + 12","24ad32 × 4 × (13 − 10)","24bb14 − 2 + 11 + 11","24bc34 × (11 − 2) − 12","24cc34 × 12 − 2 × 12","24dd12 − 4 + 13 + 13","255732 × 7 + 5 + 5","255838 × (2 + 5 ÷ 5)","255932 × 5 + 5 + 9","255a35 × (5 − 2 ÷ 10)","255b35 × (2 + 5) − 11","255c12 + 5 + 5 + 12","255d22 × (5 × 5 − 13)","256636 × (2 × 5 − 6)","256722 × 6 + 5 + 7","256812 × 5 + 6 + 8","256939 + 5 × 6 ÷ 2","256a12 × 6 × 10 ÷ 5","256b12 + 5 + 6 + 11","256c15 × 6 − 12 ÷ 2","256d26 ÷ 2 × (13 − 5)","257732 × 5 + 7 + 7","257838 × (2 × 5 − 7)","257935 × 7 − 2 − 9","257a12 + 5 + 7 + 10","257b22 × 11 + 7 − 5","257d12 × 13 + 5 − 7","258835 × 8 − 2 × 8","258912 + 5 + 8 + 9","258a28 × (10 − 2 − 5)","258b28 ÷ 2 × (11 − 5)","258c212 × (2 × 5 − 8)","258d15 − 2 + 8 + 13","259a32 × 10 + 9 − 5","259b22 × 9 + 11 − 5","259c15 − 2 + 9 + 12","25aa2(2 + 10) × 10 ÷ 5","25ab15 − 2 + 10 + 11","25ac32 × (5 + 12) − 10","25ad25 × 10 − 2 × 13","25bc312 − 2 × (5 − 11)","25cc212 × (12 − 2 × 5)","25cd312 ÷ 2 + 5 + 13","266632 × 6 + 6 + 6","266736 × (7 − 6 ÷ 2)","266822 × 6 × (8 − 6)","266932 × (6 + 9) − 6","266a12 + 6 + 6 + 10","266b32 × (11 + 6 ÷ 6)","266c12 × 6 × 12 ÷ 6","266d32 × (13 − 6 ÷ 6)","267838 × (7 + 2 − 6)","267912 + 6 + 7 + 9","267a36 × (2 × 7 − 10)","267b32 × (11 + 7 − 6)","267c22 × 12 × (7 − 6)","267d16 − 2 + 7 + 13","268822 + 6 + 8 + 8","268918 × 2 × 9 ÷ 6","268a12 × 6 × (10 − 8)","268b12 × 11 + 8 − 6","268c16 − 2 + 8 + 12","268d26 ÷ 2 + 8 + 13","269932 × (9 + 9 − 6)","269a36 × (9 − 10 ÷ 2)","269b16 − 2 + 9 + 11","269c16 ÷ 2 + 9 + 12","26aa16 − 2 + 10 + 10","26ab36 ÷ 2 + 10 + 11","26ac12 × 6 × (12 − 10)","26ad210 ÷ 2 + 6 + 13","26bc22 × 11 + 12 ÷ 6","26bd22 × 6 × (13 − 11)","26cc212 × 6 ÷ 2 − 12","26cd22 × 13 − 12 ÷ 6","277822 + 7 + 7 + 8","277a37 × (2 + 10 ÷ 7)","277b37 × (7 − 2) − 11","277c112 × 2 × 7 ÷ 7","277d32 × (13 − 7 ÷ 7)","278828 × (8 + 2 − 7)","278932 × (7 + 9) − 8","278b17 − 2 + 8 + 11","278c22 × 12 × (8 − 7)","278d18 ÷ 2 + 7 + 13","279a17 − 2 + 9 + 10","279b22 × 11 + 9 − 7","279d12 × 9 + 13 − 7","27aa32 × (7 + 10) − 10","27ab22 × 10 + 11 − 7","27ac210 ÷ 2 + 7 + 12","27bc112 ÷ 2 + 7 + 11","27cc212 × (2 × 7 − 12)","27cd312 − 2 × (7 − 13)","288838 × 8 ÷ 2 − 8","288938 × (9 + 2 − 8)","288a18 − 2 + 8 + 10","288b32 × (11 + 8 ÷ 8)","288c112 × 2 × 8 ÷ 8","288d38 × (2 × 8 − 13)","289918 − 2 + 9 + 9","289a38 × (10 + 2 − 9)","289b28 ÷ 2 + 9 + 11","289c19 × 8 ÷ 2 − 12","289d22 × (13 + 8 − 9)","28aa28 ÷ 2 + 10 + 10","28ab110 ÷ 2 + 8 + 11","28ac22 × 10 + 12 − 8","28ad22 × 13 + 8 − 10","28bb38 × (2 + 11 ÷ 11)","28bc38 × (12 + 2 − 11)","28cc112 × 12 ÷ (8 − 2)","28cd38 × (13 + 2 − 12)","28dd38 × (2 + 13 ÷ 13)","299b32 × (11 + 9 ÷ 9)","299c112 × 2 × 9 ÷ 9","299d32 × (13 − 9 ÷ 9)","29aa310 ÷ 2 + 9 + 10","29ab22 × (11 + 10 − 9)","29ac12 × 12 × (10 − 9)","29ad22 × 10 + 13 − 9","29bb22 × 11 + 11 − 9","29bd22 × 13 + 9 − 11","29cd212 ÷ 2 × (13 − 9)","29dd313 + (9 + 13) ÷ 2","2aab32 × (11 + 10 ÷ 10)","2aac112 × 2 × 10 ÷ 10","2aad32 × (13 − 10 ÷ 10)","2abb32 × (11 + 11 − 10)","2abc12 × 11 + 12 − 10","2abd22 × (13 + 10 − 11)","2acd22 × 13 + 10 − 12","2bbb32 × (11 + 11 ÷ 11)","2bbc112 × 2 × 11 ÷ 11","2bbd22 × 11 + 13 − 11","2bcc22 × 12 × (12 − 11)","2bcd32 × (13 + 11 − 12)","2bdd22 × 13 + 11 − 13","2ccc12 × 12 + 12 − 12","2ccd22 × 12 × (13 − 12)","2cdd12 × 12 + 13 − 13","2ddd32 × (13 − 13 ÷ 13)","333333 × 3 × 3 − 3","333434 × (3 × 3 − 3)","333533 × 3 + 3 × 5","333633 + 3 + 3 × 6","333733 × (7 + 3 ÷ 3)","333818 × 3 × 3 ÷ 3","333933 × (9 − 3 ÷ 3)","333a33 × 10 − 3 − 3","333b33 × 11 − 3 × 3","333c23 × 3 + 3 + 12","334433 × 4 + 3 × 4","334534 × (5 + 3 ÷ 3)","334613 − 3 + 4 × 6","334734 × (7 − 3 ÷ 3)","334828 × (4 − 3 ÷ 3)","334923 × 4 + 3 + 9","334b33 × 3 + 4 + 11","334c24 × 3 × 3 − 12","334d33 × (13 − 4) − 3","335535 × 5 − 3 ÷ 3","335613 × 5 + 3 + 6","335733 × (3 × 5 − 7)","33592(3 + 5) × 9 ÷ 3","335a23 × 3 + 5 + 10","335c23 × 5 + 12 − 3","335d23 + 3 + 5 + 13","336633 × (6 + 6 ÷ 3)","336726 − 3 + 3 × 7","336828 × (3 × 3 − 6)","336913 × 3 + 6 + 9","336a23 × (3 × 6 − 10)","336b13 × 11 − 3 − 6","336c23 + 3 + 6 + 12","336d36 × (13 − 3 × 3)","337737 × (3 + 3 ÷ 7)","337833 × 3 + 7 + 8","337923 × 7 + 9 ÷ 3","337b23 + 3 + 7 + 11","337c212 × (3 × 3 − 7)","337d33 × (3 × 7 − 13)","338838 ÷ (3 − 8 ÷ 3)","338933 × (3 + 8) − 9","338a23 + 3 + 8 + 10","338c28 × (12 − 3 × 3)","338d33 × (13 + 3 − 8)","339923 + 3 + 9 + 9","339a33 − 9 + 3 × 10","339b29 ÷ 3 × (11 − 3)","339c23 × 12 − 3 − 9","339d3(3 + 3) × (13 − 9)","33ad33 ÷ 3 + 10 + 13","33bc23 ÷ 3 + 11 + 12","33bd13 − 3 + 11 + 13","33cc13 − 3 + 12 + 12","33cd212 + 13 − 3 ÷ 3","344434 × (3 + 4) − 4","344523 + 5 + 4 × 4","344613 × 4 × (6 − 4)","344734 × (7 + 3 − 4)","344813 × 4 + 4 + 8","344924 × 9 − 3 × 4","344a34 × (10 − 3) − 4","344b311 − 3 + 4 × 4","344c312 × (3 − 4 ÷ 4)","344d23 + 4 + 4 + 13","345523 − 4 + 5 × 5","345636 × (5 + 3 − 4)","345713 × 4 + 5 + 7","345814 × 8 − 3 − 5","345934 × (3 × 5 − 9)","345a13 × 4 × 10 ÷ 5","345b33 × 11 − 4 − 5","345c13 + 4 + 5 + 12","345d23 × 5 + 13 − 4","346623 × 4 + 6 + 6","346813 × 4 × (8 − 6)","346924 × (9 + 3 − 6)","346a13 × 6 + 10 − 4","346b13 + 4 + 6 + 11","346c13 × 4 × 12 ÷ 6","346d26 × (3 + 13) ÷ 4","347713 × 7 + 7 − 4","347838 − 4 × (3 − 7)","347923 × 9 + 4 − 7","347a13 + 4 + 7 + 10","347b13 × (11 + 4 − 7)","347c13 × 7 + 12 ÷ 4","348913 + 4 + 8 + 9","348a13 × 4 × (10 − 8)","348b13 − 11 + 4 × 8","348c14 × 12 − 3 × 8","348d28 × (13 − 4) ÷ 3","349914 × 9 − 3 − 9","349b33 × 4 × (11 − 9)","349c13 × 9 − 12 ÷ 4","349d33 × (13 + 4 − 9)","34aa33 × 10 + 4 − 10","34ac13 × 4 × (12 − 10)","34ad14 − 3 + 10 + 13","34bc14 − 3 + 11 + 12","34bd13 × 11 + 4 − 13","34cc212 − 12 × (3 − 4)","34cd13 − 4 + 12 + 13","355633 × (5 + 5) − 6","355733 × (7 + 5 ÷ 5)","355818 × 3 × 5 ÷ 5","355933 × (9 − 5 ÷ 5)","355b23 + 5 + 5 + 11","355c312 × (3 − 5 ÷ 5)","356626 × (6 + 3 − 5)","356726 ÷ 3 × (5 + 7)","356816 × 8 ÷ (5 − 3)","356913 − 9 + 5 × 6","356a13 + 5 + 6 + 10","356b23 × 6 + 11 − 5","356c212 × (3 + 5 − 6)","356d3(3 − 6) × (5 − 13)","357823 × 7 + 8 − 5","357913 + 5 + 7 + 9","357a210 − 7 × (3 − 5)","357b3(7 × 11 − 5) ÷ 3","357c23 × 12 − 5 − 7","357d3(7 + 5 × 13) ÷ 3","358823 + 5 + 8 + 8","358923 × 9 + 5 − 8","358b18 × (11 − 3 − 5)","358c28 × (3 × 5 − 12)","358d35 × 8 − 3 − 13","359929 + 5 × 9 ÷ 3","359a2(3 + 9) × 10 ÷ 5","359c212 × (5 − 9 ÷ 3)","359d15 − 3 + 9 + 13","35aa33 × (10 − 10 ÷ 5)","35ab23 × 10 + 5 − 11","35ac15 − 3 + 10 + 12","35ad23 × 13 − 5 − 10","35bb15 − 3 + 11 + 11","35bc312 ÷ 3 × (11 − 5)","35cc35 × 12 − 3 × 12","35cd212 × (3 × 5 − 13)","35dd13 − 5 + 13 + 13","366626 − 6 × (3 − 6)","366726 × 7 − 3 × 6","366818 × 3 × 6 ÷ 6","366913 + 6 + 6 + 9","366a310 × (6 − 3) − 6","366b3(6 + 6 × 11) ÷ 3","366c13 × 6 + 12 − 6","366d36 × (13 − 3 − 6)","367733 × (7 + 7 − 6)","367813 + 6 + 7 + 8","367913 × 7 + 9 − 6","367a310 + 7 × 6 ÷ 3","367c212 × (3 + 6 − 7)","367d23 × 6 + 13 − 7","368828 + 8 × 6 ÷ 3","368918 × 9 ÷ (6 − 3)","368a33 × (10 + 6 − 8)","368c38 × (12 − 3 − 6)","368d16 − 3 + 8 + 13","369923 × 9 + 6 − 9","369a110 × 9 ÷ 3 − 6","369b111 × (6 − 3) − 9","369c112 × 3 × 6 ÷ 9","369d16 ÷ 3 + 9 + 13","36aa36 × (3 + 10 ÷ 10)","36ab16 − 3 + 10 + 11","36ac16 ÷ 3 + 10 + 12","36bb36 ÷ 3 + 11 + 11","36bc26 × (12 + 3 − 11)","36bd33 × (13 + 6 − 11)","36cc212 × (6 − 3) − 12","36cd36 × (13 + 3 − 12)","36dd313 + 13 − 6 ÷ 3","377733 + 7 + 7 + 7","377818 × 3 × 7 ÷ 7","377933 × (9 − 7 ÷ 7)","377a23 × 7 + 10 − 7","377c312 × (3 − 7 ÷ 7)","377d17 − 3 + 7 + 13","378828 × (7 − 3) − 8","378933 × (9 + 7 − 8)","378b23 × 7 + 11 − 8","378c17 − 3 + 8 + 12","378d23 × 13 − 7 − 8","37993(9 + 7 × 9) ÷ 3","379a23 × 9 + 7 − 10","379b17 − 3 + 9 + 11","379c23 × 7 + 12 − 9","379d37 × 9 − 3 × 13","37aa17 − 3 + 10 + 10","37ab23 × (11 + 7 − 10)","37ad13 × 7 + 13 − 10","37bb33 × (7 + 11 ÷ 11)","37bc112 × (3 + 11) ÷ 7","37cc312 × (12 − 3 − 7)","37cd112 ÷ 3 + 7 + 13","37dd33 × (7 + 13 ÷ 13)","388813 × 8 + 8 − 8","388923 × 8 × (9 − 8)","388a3(8 × 10 − 8) ÷ 3","388b18 − 3 + 8 + 11","388c38 × 12 ÷ 3 − 8","389913 × 8 + 9 − 9","389a18 − 3 + 9 + 10","389b23 × 9 + 8 − 11","389c212 × (3 + 8 − 9)","389d39 ÷ 3 + 8 + 13","38aa13 × 8 + 10 − 10","38ab23 × 8 × (11 − 10)","38ac310 × 12 ÷ (8 − 3)","38bb13 × 8 + 11 − 11","38bc23 × 8 × (12 − 11)","38cc13 × 8 + 12 − 12","38cd13 × 8 × (13 − 12)","38dd13 × 8 + 13 − 13","399929 − 3 + 9 + 9","399a33 × (9 + 9 − 10)","399b211 × 9 ÷ 3 − 9","399c23 × 9 + 9 − 12","399d3(3 − 9) × (9 − 13)","39aa33 × (9 − 10 ÷ 10)","39ab29 ÷ 3 + 10 + 11","39ac212 × (3 + 9 − 10)","39ad23 × 9 + 10 − 13","39bb33 × (9 − 11 ÷ 11)","39bc112 ÷ 3 + 9 + 11","39bd3(3 + 9) × (13 − 11)","39cc212 × 9 ÷ 3 − 12","39cd23 × (9 + 12 − 13)","39dd33 × (9 − 13 ÷ 13)","3aac312 ÷ 3 + 10 + 10","3abc312 × (3 + 10 − 11)","3abd23 × (10 + 11 − 13)","3bbc312 × (3 − 11 ÷ 11)","3bcc312 × (3 + 11 − 12)","3ccc312 × (3 − 12 ÷ 12)","3ccd312 × (3 + 12 − 13)","3cdd312 × (3 − 13 ÷ 13)","444434 + 4 + 4 × 4","444534 × (5 + 4 ÷ 4)","444616 × 4 × 4 ÷ 4","444734 × (7 − 4 ÷ 4)","444834 × 8 − 4 − 4","444934 − 4 × (4 − 9)","444a34 × 10 − 4 × 4","444b34 × (11 − 4) − 4","444c14 + 4 + 4 + 12","445535 × 5 − 4 ÷ 4","445626 × (5 − 4 ÷ 4)","445734 × (7 + 4 − 5)","445815 × 8 − 4 × 4","445a34 − 4 × (5 − 10)","445b24 + 4 + 5 + 11","445c34 × (4 + 5) − 12","445d34 × 4 + 13 − 5","446824 × (8 + 4 − 6)","44691(4 + 4) × (9 − 6)","446a24 + 4 + 6 + 10","446b34 − 4 × (6 − 11)","446c14 × 12 − 4 × 6","446d34 × (13 − 6) − 4","447737 × (4 − 4 ÷ 7)","447824 × 7 + 4 − 8","447914 + 4 + 7 + 9","447a3(4 + 4) × (10 − 7)","447c212 − 4 × (4 − 7)","447d34 × 13 − 4 × 7","448814 + 4 + 8 + 8","448934 × 9 − 4 − 8","448a14 + 10 × 8 ÷ 4","448b38 × (11 − 4 − 4)","448c112 × 4 × 4 ÷ 8","448d38 × (4 × 4 − 13)","449b34 × (11 + 4 − 9)","449c34 × (9 − 12 ÷ 4)","44aa3(10 × 10 − 4) ÷ 4","44ac24 × 10 − 4 − 12","44ad34 ÷ 4 + 10 + 13","44bc34 ÷ 4 + 11 + 12","44bd14 − 4 + 11 + 13","44cc14 − 4 + 12 + 12","44cd312 + 13 − 4 ÷ 4","455524 − 5 + 5 × 5","455616 × 4 × 5 ÷ 5","455734 × (7 − 5 ÷ 5)","455838 × (4 − 5 ÷ 5)","455924 × 5 + 9 − 5","455a24 + 5 + 5 + 10","456624 × 6 × (6 − 5)","456724 × (7 + 5 − 6)","456838 × (4 + 5 − 6)","456914 + 5 + 6 + 9","456a14 × 5 + 10 − 6","456b36 × (5 + 11) ÷ 4","456c312 × (4 + 6) ÷ 5","456d36 × (13 − 4 − 5)","457735 × 7 − 4 − 7","457814 + 5 + 7 + 8","457914 × 7 + 5 − 9","457a34 − 10 × (5 − 7)","457b24 × 5 + 11 − 7","457c212 × (4 + 5 − 7)","457d3(5 + 7 × 13) ÷ 4","458838 × (5 − 8 ÷ 4)","458924 × (9 + 5 − 8)","458a2(4 + 8) × 10 ÷ 5","458b28 × (4 + 11) ÷ 5","458c14 × 5 + 12 − 8","458d24 × 8 + 5 − 13","459934 × (5 + 9 ÷ 9)","459a24 × (10 + 5 − 9)","459c35 × 12 − 4 × 9","459d24 × 5 + 13 − 9","45aa34 + 10 × 10 ÷ 5","45ab24 × 10 − 5 − 11","45ac112 × 4 × 5 ÷ 10","45ad15 − 4 + 10 + 13","45bb35 × (11 − 4) − 11","45bc15 − 4 + 11 + 12","45bd113 − 11 × (4 − 5)","45cc212 − 12 × (4 − 5)","45cd14 − 5 + 12 + 13","45dd34 × (5 + 13 ÷ 13)","466614 × 6 + 6 − 6","466724 × 6 × (7 − 6)","466814 + 6 + 6 + 8","466934 × 9 − 6 − 6","466a36 × (6 + 10) ÷ 4","466c26 + 6 × 12 ÷ 4","467714 + 6 + 7 + 7","467818 × (4 + 6 − 7)","467936 × (7 + 9) ÷ 4","467a24 × 7 + 6 − 10","467c36 × 12 ÷ (7 − 4)","468814 × 6 + 8 − 8","468916 + 9 × 8 ÷ 4","468a34 − 10 × (6 − 8)","468c112 + 6 × 8 ÷ 4","468d38 × (13 − 4 − 6)","469914 × 6 + 9 − 9","469a16 × 10 − 4 × 9","469c112 − 4 × (6 − 9)","469d16 − 4 + 9 + 13","46aa14 × 6 + 10 − 10","46ab24 × 6 × (11 − 10)","46ac16 − 4 + 10 + 12","46bb14 × 6 + 11 − 11","46bc24 × 6 × (12 − 11)","46cc14 × 6 + 12 − 12","46cd24 × 6 × (13 − 12)","46dd14 × 6 + 13 − 13","477734 × (7 − 7 ÷ 7)","477834 × (7 + 7 − 8)","477b24 × 7 + 7 − 11","478827 × 8 − 4 × 8","478928 × 9 ÷ (7 − 4)","478a310 + 7 × 8 ÷ 4","478b38 − 4 × (7 − 11)","478c24 × 7 + 8 − 12","478d17 − 4 + 8 + 13","479934 × (7 − 9 ÷ 9)","479a24 × 10 − 7 − 9","479b311 × (7 − 4) − 9","479c17 − 4 + 9 + 12","479d24 × 7 + 9 − 13","47aa34 × (7 − 10 ÷ 10)","47ab17 − 4 + 10 + 11","47ac112 × (4 + 10) ÷ 7","47bb34 × (7 − 11 ÷ 11)","47bc34 × (7 + 11 − 12)","47bd34 × 11 − 7 − 13","47cc312 × (7 − 4) − 12","47cd212 × (13 − 4 − 7)","47dd34 × (7 − 13 ÷ 13)","488838 + 8 × 8 ÷ 4","488938 × (4 + 8 − 9)","488a28 × 8 − 4 × 10","488b3(8 + 8 × 11) ÷ 4","488c18 − 4 + 8 + 12","488d3(8 × 13 − 8) ÷ 4","489938 × (4 − 9 ÷ 9)","489a38 × (4 + 9 − 10)","489b18 − 4 + 9 + 11","489c19 × 4 × 8 ÷ 12","489d38 ÷ 4 + 9 + 13","48aa18 − 4 + 10 + 10","48ab38 × (4 + 10 − 11)","48ac18 ÷ 4 + 10 + 12","48bb38 ÷ 4 + 11 + 11","48bc14 × 11 − 8 − 12","48bd24 × (8 + 11 − 13)","48cc212 × (4 + 12) ÷ 8","48cd212 ÷ 4 + 8 + 13","48dd313 + 13 − 8 ÷ 4","499a19 − 4 + 9 + 10","499c34 × (9 + 9 − 12)","49ab34 − 10 × (9 − 11)","49ac310 × 12 ÷ (9 − 4)","49ad24 × (9 + 10 − 13)","49bb34 × 11 − 9 − 11","49bc111 × 12 ÷ 4 − 9","49cc212 ÷ 4 + 9 + 12","4aab34 × 11 − 10 − 10","4aac34 − 10 × (10 − 12)","4abc312 ÷ 4 + 10 + 11","4abd34 − 10 × (11 − 13)","4acc212 × (4 + 10 − 12)","4acd212 − 4 × (10 − 13)","4bcd14 × 12 − 11 − 13","4ccc34 × 12 − 12 − 12","555535 × 5 − 5 ÷ 5","555625 × 5 + 5 − 6","555935 + 5 + 5 + 9","555c312 × (5 + 5) ÷ 5","556635 × 5 − 6 ÷ 6","556725 × 5 + 6 − 7","556825 + 5 + 6 + 8","556b25 × 6 + 5 − 11","557725 + 5 + 7 + 7","557825 × 5 + 7 − 8","557a3(5 + 7) × 10 ÷ 5","557b35 × (7 − 11 ÷ 5)","558835 × 5 − 8 ÷ 8","558925 × 5 + 8 − 9","558a28 × (5 + 10) ÷ 5","558b35 × 8 − 5 − 11","558c312 × (5 + 5 − 8)","558d28 × (13 − 5 − 5)","559935 × 5 − 9 ÷ 9","559a35 × 5 + 9 − 10","559b3(5 − 9) × (5 − 11)","55aa35 × 5 − 10 ÷ 10","55ab35 × 5 + 10 − 11","55ad35 ÷ 5 + 10 + 13","55bb35 × 5 − 11 ÷ 11","55bc25 × 5 + 11 − 12","55bd15 − 5 + 11 + 13","55cc15 × 5 − 12 ÷ 12","55cd25 × 5 + 12 − 13","55dd35 × 5 − 13 ÷ 13","566636 × (5 − 6 ÷ 6)","566715 + 6 + 6 + 7","566836 − 6 × (5 − 8)","566936 × 9 − 5 × 6","566a26 × (10 − 5) − 6","566c25 × 6 + 6 − 12","567736 × (5 − 7 ÷ 7)","567826 × (5 + 7 − 8)","567936 − 9 × (5 − 7)","567c2(5 + 7) × 12 ÷ 6","567d15 × 6 + 7 − 13","568838 × (5 + 6 − 8)","568926 × (5 + 8 − 9)","568a18 × 5 × 6 ÷ 10","568c26 × 12 ÷ (8 − 5)","568d38 × (5 + 13) ÷ 6","569939 − 5 × (6 − 9)","569a26 + 9 × 10 ÷ 5","569b26 × (9 + 11) ÷ 5","569c212 × (5 + 6 − 9)","569d3(5 − 13) × (6 − 9)","56aa26 × (10 + 10) ÷ 5","56ab26 × (5 + 10 − 11)","56ac312 + 6 × 10 ÷ 5","56ad16 − 5 + 10 + 13","56bb36 × (5 − 11 ÷ 11)","56bc16 − 5 + 11 + 12","56bd113 − 11 × (5 − 6)","56cc212 − 12 × (5 − 6)","56cd15 − 6 + 12 + 13","56dd36 × (5 − 13 ÷ 13)","57793(5 + 7) × (9 − 7)","577a310 − 7 × (5 − 7)","577b37 × (5 − 11 ÷ 7)","578828 − 8 × (5 − 7)","578925 × 8 − 7 − 9","578a3(5 + 7) × (10 − 8)","579a39 − 5 × (7 − 10)","579b3(5 + 7) × (11 − 9)","579c312 × (5 + 9) ÷ 7","579d17 − 5 + 9 + 13","57aa310 + 7 × 10 ÷ 5","57ab37 × (10 − 5) − 11","57ac17 − 5 + 10 + 12","57ad3(5 − 13) × (7 − 10)","57bb17 − 5 + 11 + 11","57bd3(5 + 7) × (13 − 11)","57cc37 × 12 − 5 × 12","57dd15 − 7 + 13 + 13","588838 × 8 − 5 × 8","588938 × 9 ÷ (8 − 5)","588a28 + 8 × 10 ÷ 5","588d18 − 5 + 8 + 13","589b211 × (8 − 5) − 9","589c18 − 5 + 9 + 12","589d35 × 9 − 8 − 13","58ab18 − 5 + 10 + 11","58ac38 × (5 + 10 − 12)","58bc112 × (5 + 8 − 11)","58bd28 × (5 + 11 − 13)","58cc312 × (8 − 5) − 12","599b19 − 5 + 9 + 11","599c25 × 9 − 9 − 12","59aa19 − 5 + 10 + 10","59ab35 × 9 − 10 − 11","59ad310 ÷ 5 + 9 + 13","59bd3(5 − 11) × (9 − 13)","59cc312 × (5 + 9 − 12)","59cd212 × (5 + 13) ÷ 9","5aab3(10 + 10 × 11) ÷ 5","5aac210 ÷ 5 + 10 + 12","5aad3(10 × 13 − 10) ÷ 5","5abb310 ÷ 5 + 11 + 11","5acd312 × (5 + 10 − 13)","5add25 × 10 − 13 − 13","5bcc312 × 12 ÷ (11 − 5)","666636 + 6 + 6 + 6","666836 × (6 + 6 − 8)","666926 − 6 × (6 − 9)","666a36 × 10 − 6 × 6","666b36 × (11 − 6) − 6","666c2(6 + 6) × 12 ÷ 6","667926 × (6 + 7 − 9)","667a36 − 6 × (7 − 10)","667b36 × 11 − 6 × 7","667c36 × 7 − 6 − 12","668836 × 8 ÷ (8 − 6)","668938 × (6 + 6 − 9)","668a26 × (6 + 8 − 10)","668b36 − 6 × (8 − 11)","668c18 × 6 × 6 ÷ 12","668d36 × (13 − 8) − 6","669a210 × (9 − 6) − 6","669b26 × (6 + 9 − 11)","669c26 + 9 × 12 ÷ 6","669d36 × 13 − 6 × 9","66ac112 × (6 + 6 − 10)","66ad36 ÷ 6 + 10 + 13","66bc36 ÷ 6 + 11 + 12","66bd16 − 6 + 11 + 13","66cc16 − 6 + 12 + 12","66cd312 + 13 − 6 ÷ 6","677a36 × (7 + 7 − 10)","677b36 × 7 − 7 − 11","678936 × 8 ÷ (9 − 7)","678a26 × 7 − 8 − 10","678b26 × (7 + 8 − 11)","678c312 × (6 + 8) ÷ 7","679926 × 7 − 9 − 9","679c26 × (7 + 9 − 12)","67aa310 × (10 − 7) − 6","67ac27 × 12 − 6 × 10","67ad17 − 6 + 10 + 13","67bb37 × (11 − 6) − 11","67bc17 − 6 + 11 + 12","67bd113 − 11 × (6 − 7)","67cc212 − 12 × (6 − 7)","67cd16 − 7 + 12 + 13","688838 − 8 × (6 − 8)","688928 × 9 − 6 × 8","688a26 × 8 ÷ (10 − 8)","688b38 × (6 + 8 − 11)","688c28 + 8 × 12 ÷ 6","689928 × 9 ÷ (9 − 6)","689a36 − 9 × (8 − 10)","689b36 × 8 ÷ (11 − 9)","689c28 × (6 + 9 − 12)","689d18 − 6 + 9 + 13","68ab310 × (11 − 8) − 6","68ac18 − 6 + 10 + 12","68ad38 × (6 + 10 − 13)","68bb18 − 6 + 11 + 11","68bc36 × 12 ÷ (11 − 8)","68bd26 × 8 − 11 − 13","68cc16 × 8 − 12 − 12","68dd16 − 8 + 13 + 13","699a39 + 10 × 9 ÷ 6","699b311 × (9 − 6) − 9","699c19 − 6 + 9 + 12","69ab19 − 6 + 10 + 11","69ac39 × (10 − 6) − 12","69bc312 − 6 × (9 − 11)","69bd36 − 9 × (11 − 13)","69cc212 × (9 − 6) − 12","69cd112 ÷ 6 + 9 + 13","6aaa310 − 6 + 10 + 10","6aad310 × (13 − 10) − 6","6abc310 × 12 ÷ (11 − 6)","6acc312 ÷ 6 + 10 + 12","6acd36 × 12 ÷ (13 − 10)","6bbc312 ÷ 6 + 11 + 11","6bcc3(12 + 11 × 12) ÷ 6","6bcd312 − 6 × (11 − 13)","6ccc312 × 12 ÷ (12 − 6)","6ccd3(12 × 13 − 12) ÷ 6","6cdd313 + 13 − 12 ÷ 6","777c312 × (7 + 7) ÷ 7","778b38 × (7 + 7 − 11)","779a310 − 7 × (7 − 9)","77ad37 ÷ 7 + 10 + 13","77bc37 ÷ 7 + 11 + 12","77bd17 − 7 + 11 + 13","77cc17 − 7 + 12 + 12","77cd27 × 7 − 12 − 13","788938 − 8 × (7 − 9)","788a38 × 10 − 7 × 8","788b38 × (11 − 7) − 8","788c38 × (7 + 8 − 12)","788d38 × (8 + 13) ÷ 7","789a38 × 9 ÷ (10 − 7)","789c212 × (7 + 9) ÷ 8","789d38 × (7 + 9 − 13)","78aa310 − 7 × (8 − 10)","78ab38 × (10 + 11) ÷ 7","78ad18 − 7 + 10 + 13","78bc18 − 7 + 11 + 12","78bd113 − 11 × (7 − 8)","78cc212 − 12 × (7 − 8)","78cd17 − 8 + 12 + 13","799d19 − 7 + 9 + 13","79ab311 × (10 − 7) − 9","79ac19 − 7 + 10 + 12","79bb19 − 7 + 11 + 11","79bc212 × (7 + 11) ÷ 9","79cc39 × 12 − 7 × 12","79dd17 − 9 + 13 + 13","7aab110 − 7 + 10 + 11","7aac310 − 7 × (10 − 12)","7abd310 − 7 × (11 − 13)","7acc312 × (10 − 7) − 12","7acd312 × (7 + 13) ÷ 10","7ccd312 × 12 ÷ (13 − 7)","888a38 − 8 × (8 − 10)","888b38 × 11 − 8 × 8","888c212 × (8 + 8) ÷ 8","888d38 × (8 + 8 − 13)","889b28 × 9 ÷ (11 − 8)","889c38 × 12 − 8 × 9","889d38 × (13 − 9) − 8","88ac38 − 8 × (10 − 12)","88ad38 ÷ 8 + 10 + 13","88bc38 ÷ 8 + 11 + 12","88bd18 − 8 + 11 + 13","88cc18 − 8 + 12 + 12","88cd312 + 13 − 8 ÷ 8","899c38 × 9 ÷ (12 − 9)","89ac212 × (8 + 10) ÷ 9","89ad19 − 8 + 10 + 13","89bb311 × (11 − 8) − 9","89bc19 − 8 + 11 + 12","89bd113 − 11 × (8 − 9)","89cc212 − 12 × (8 − 9)","89cd18 − 9 + 12 + 13","8aac110 − 8 + 10 + 12","8abb110 − 8 + 11 + 11","8acc210 × 12 − 8 × 12","8acd310 × 12 ÷ (13 − 8)","8add18 − 10 + 13 + 13","8bcc312 × (11 − 8) − 12","999c312 × (9 + 9) ÷ 9","99ad39 ÷ 9 + 10 + 13","99bc39 ÷ 9 + 11 + 12","99bd19 − 9 + 11 + 13","99cc19 − 9 + 12 + 12","99cd312 + 13 − 9 ÷ 9","9aad110 − 9 + 10 + 13","9abc110 − 9 + 11 + 12","9abd113 − 11 × (9 − 10)","9acc212 − 12 × (9 − 10)","9acd19 − 10 + 12 + 13","9bbb311 − 9 + 11 + 11","9bcc311 × 12 − 9 × 12","9bcd312 × (9 + 13) ÷ 11","9bdd19 − 11 + 13 + 13","9ccc312 × (12 − 9) − 12","aaac312 × (10 + 10) ÷ 10","aaad310 ÷ 10 + 10 + 13","aabc310 ÷ 10 + 11 + 12","aabd110 − 10 + 11 + 13","aacc110 − 10 + 12 + 12","aacd312 + 13 − 10 ÷ 10","abbc111 − 10 + 11 + 12","abbd110 + 13 + 11 ÷ 11","abcc112 − 12 × (10 − 11)","abcd110 − 11 + 12 + 13","accc312 × 12 − 10 × 12","accd310 + 13 + 12 ÷ 12","acdd110 − 12 + 13 + 13","addd310 + 13 + 13 ÷ 13","bbbc211 ÷ 11 + 11 + 12","bbbd111 + 11 + 13 − 11","bbcc111 − 11 + 12 + 12","bbcd112 + 13 − 11 ÷ 11","bccc211 + 12 + 12 ÷ 12","bccd111 + 12 + 13 − 12","bcdd111 + 12 + 13 ÷ 13","bddd111 + 13 + 13 − 13","cccc112 + 12 + 12 − 12","cccd112 + 13 − 12 ÷ 12","ccdd112 + 12 + 13 − 13","cddd212 + 13 − 13 ÷ 13"];
+const DECK = RAW.map((r,k) => ({ id:k+1, key:r.slice(0,4), nums:[...r.slice(0,4)].map(c => parseInt(c,16)), d:+r[4], sol:r.slice(5) }));
+const LEVEL = ["", "Easy", "Medium", "Hard"];
+const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const store = {
+  get(k,f){ try{ const v = localStorage.getItem(k); return v === null ? f : JSON.parse(v); }catch(e){ return f; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+let solved = new Set(store.get("m24-solved", []));
+let best = store.get("m24-best", 0), streak = 0;
+let soundOn = store.get("m24-sound", true);
+
+/* ---------- sound (synthesised, no files) ---------- */
+const S = (() => {
+  let ctx = null, master = null;
+  function init(){
+    if(!ctx){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; ctx = new AC(); master = ctx.createGain(); master.gain.value = .7; master.connect(ctx.destination); }
+    /* iOS parks the context as "interrupted" (not "suspended") after a call or switching apps */
+    if(ctx.state !== "running") ctx.resume().catch(() => {});
+  }
+  function tone(f, dur, o = {}){
+    if(!ctx || !soundOn) return;
+    const { type="sine", vol=.2, at=0, to=null, attack=.006 } = o;
+    const t = ctx.currentTime + at, osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(f, t);
+    if(to) osc.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    osc.connect(g); g.connect(master); osc.start(t); osc.stop(t + dur + .03);
+  }
+  function noise(dur, o = {}){
+    if(!ctx || !soundOn) return;
+    const { vol=.15, freq=1500, q=1, at=0, sweep=null } = o;
+    const t = ctx.currentTime + at, len = Math.ceil(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    for(let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.Q.value = q; f.frequency.setValueAtTime(freq, t);
+    if(sweep) f.frequency.exponentialRampToValueAtTime(sweep, t + dur);
+    const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(master); src.start(t); src.stop(t + dur);
+  }
+  return {
+    init,
+    tap(){ tone(740,.08,{type:"triangle",vol:.2}); },
+    deselect(){ tone(470,.07,{type:"triangle",vol:.13}); },
+    op(){ noise(.05,{vol:.12,freq:4200,q:3}); tone(1180,.06,{type:"triangle",vol:.09,at:.01}); },
+    combine(){ noise(.16,{vol:.1,freq:700,sweep:2600,q:2}); tone(523,.1,{type:"triangle",vol:.17,at:.16}); tone(784,.16,{type:"triangle",vol:.17,at:.24}); },
+    win(){ [523,659,784,1047].forEach((f,i) => tone(f,.4,{type:"triangle",vol:.18,at:i*.09})); tone(1568,.7,{vol:.08,at:.38}); tone(2093,.6,{vol:.06,at:.48}); tone(2637,.5,{vol:.04,at:.58}); },
+    wrong(){ tone(196,.3,{type:"sawtooth",vol:.07,to:110}); tone(185,.3,{type:"square",vol:.03,to:100}); },
+    undo(){ tone(640,.1,{type:"triangle",vol:.14,to:380}); },
+    hint(){ tone(880,.14,{vol:.13}); tone(1320,.22,{vol:.1,at:.11}); },
+    flip(){ noise(.24,{vol:.2,freq:500,sweep:3200,q:.8}); },
+    deal(){ noise(.18,{vol:.18,freq:3200,sweep:1100,q:.7}); tone(150,.09,{vol:.14,at:.16}); },
+    rival(){ tone(988,.09,{type:"square",vol:.05}); tone(740,.14,{type:"square",vol:.05,at:.09}); },
+    join(){ tone(660,.1,{vol:.12}); tone(990,.16,{vol:.1,at:.08}); },
+    tick(){ tone(1250,.04,{type:"square",vol:.045}); },
+    timeup(){ tone(233,.55,{type:"sawtooth",vol:.08,to:150}); tone(220,.55,{type:"square",vol:.04,to:140,at:.02}); },
+  };
+})();
+/* Safari on a Mac only lets audio start from mousedown/click, not pointerdown, so listen for click too */
+["pointerdown","touchend","keydown","click"].forEach(e => document.addEventListener(e, () => S.init(), { capture:true, passive:true }));
+
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="m16 9 6 6M22 9l-6 6"/></svg>';
+function paintSound(){ const b = $("#sound"); b.innerHTML = soundOn ? ICON_ON : ICON_OFF; b.setAttribute("aria-pressed", String(soundOn)); b.setAttribute("aria-label", soundOn ? "Sound on" : "Sound off"); }
+
+/* ---------- fractions ---------- */
+const gcd = (a,b) => { a = Math.abs(a); b = Math.abs(b); while(b){ [a,b] = [b, a % b]; } return a || 1; };
+const fr = (n, d = 1) => { if(d < 0){ n = -n; d = -d; } const g = gcd(n,d); return { n:n/g, d:d/g }; };
+const OPS = {
+  "+": (a,b) => fr(a.n*b.d + b.n*a.d, a.d*b.d),
+  "-": (a,b) => fr(a.n*b.d - b.n*a.d, a.d*b.d),
+  "*": (a,b) => fr(a.n*b.n, a.d*b.d),
+  "/": (a,b) => b.n === 0 ? null : fr(a.n*b.d, a.d*b.n),
+};
+const SYM = { "+":"+", "-":"−", "*":"×", "/":"÷" };
+const txt = f => (f.n < 0 ? "−" : "") + Math.abs(f.n) + (f.d === 1 ? "" : "/" + f.d);
+const html = f => f.d === 1 ? txt(f) : `<span class="frac">${f.n < 0 ? "−" : ""}<span class="fs"><span class="t">${Math.abs(f.n)}</span><span class="b">${f.d}</span></span></span>`;
+const is24 = f => f.n === 24 && f.d === 1;
+
+function solveFrom(vals, intOnly){
+  const items = vals.map((v,i) => v ? { v, i } : null).filter(Boolean);
+  function rec(list){
+    if(list.length === 1) return is24(list[0].v) ? [] : null;
+    for(const a of list) for(const b of list){
+      if(a === b) continue;
+      for(const op of ["+","-","*","/"]){
+        if((op === "+" || op === "*") && a.i > b.i) continue;
+        const r = OPS[op](a.v, b.v);
+        if(!r || (intOnly && r.d !== 1)) continue;
+        const s = rec(list.filter(x => x !== a && x !== b).concat([{ v:r, i:b.i }]));
+        if(s) return [{ a:a.i, b:b.i, op }].concat(s);
+      }
+    }
+    return null;
+  }
+  return rec(items);
+}
+
+/* ---------- deck ---------- */
+let filter = 0, order = [], idx = 0, currentCard = null;
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function buildOrder(){ order = shuffle(DECK.map((c,i) => i).filter(i => !filter || DECK[i].d === filter)); idx = 0; }
+
+/* ---------- state ---------- */
+const card = $("#card"), dealer = $("#dealer"), hub = $("#hub"), statusEl = $("#status"), trailEl = $("#trail");
+let slots = [], history = [], trail = [], selected = null, op = null, won = false, flipped = false, revealed = false, hint = null, busy = false, t0 = 0, tick = null, frozen = 0;
+let timedOut = false, raceHints = 3, lastTickSec = -1;
+
+/* multiplayer state */
+let mode = "solo", tab = "solo", room = null, roomCode = "";
+let amHost = false, curRound = 0, seenOrder = [], seenRound = 0;
+const PTS = [3, 2];
+const COLORS = ["#E9BC45","#E2665B","#5DA9E9","#57C08A","#C792EA","#F29E4C","#7FD1C7","#F7F2E2"];
+let myColor = store.get("m24-color", null);
+if(!COLORS.includes(myColor)){ myColor = COLORS[Math.floor(Math.random() * COLORS.length)]; store.set("m24-color", myColor); }
+const pk = peer => "p_" + peer;
+const CTRL_RE = new RegExp("[\\u0000-\\u001f\\u007f-\\u009f\\u00ad\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff]", "g");
+const cleanName = s => String(s == null ? "" : s).replace(CTRL_RE, "").trim().slice(0, 16);
+const ord = n => n + (n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th");
+
+const fmt = s => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+const elapsed = () => frozen || (performance.now() - t0) / 1000;
+const RACE_LIMIT = 300, RACE_HINTS = 3;
+function paintTimer(){
+  const el = $("#timer"), race = mode === "race";
+  el.textContent = race ? fmt(Math.max(0, RACE_LIMIT - elapsed())) : fmt(elapsed());
+  el.parentElement.classList.toggle("low", race && !won && !timedOut && RACE_LIMIT - elapsed() <= 30);
+}
+function startTimer(){ t0 = performance.now() - (mode === "race" && raceDealtAt ? Math.max(0, serverNow() - raceDealtAt) : 0); frozen = 0; lastTickSec = -1; clearInterval(tick); paintTimer(); tick = setInterval(onTick, 250); }
+function stopTimer(){ frozen = elapsed(); clearInterval(tick); paintTimer(); }
+function onTick(){
+  paintTimer();
+  if(mode === "race") updateNext();
+  if(mode !== "race" || won || timedOut || !curRound) return;
+  const left = RACE_LIMIT - elapsed(), sec = Math.ceil(left);
+  if(left <= 10 && left > 0 && sec !== lastTickSec){ lastTickSec = sec; S.tick(); }
+  if(left <= 0 && !busy) timeUp();
+}
+function timeUp(){
+  timedOut = true; stopTimer(); selected = null; op = null; hint = null;
+  flipped = true; card.classList.add("flipped"); $("#flip span").textContent = "Hide";
+  S.timeup(); shake();
+  setStatus("Time's up! 0 points this round. Here's one way to make 24.", "bad");
+  render(); updateNext();
+}
+
+function setStatus(t, kind){
+  statusEl.textContent = t; statusEl.className = kind || "";
+  if(!RM) statusEl.animate([{ opacity:0, transform:"translateY(5px)" }, { opacity:1, transform:"none" }], { duration:200, easing:"ease-out" });
+}
+function bump(el){ if(!RM && el) el.animate([{ transform:"scale(1.45)", color:"#E9BC45" }, { transform:"scale(1)" }], { duration:450, easing:"cubic-bezier(.2,.9,.3,1.3)" }); }
+function updateStats(bumpWhich){
+  $("#solved").textContent = solved.size; $("#streak").textContent = streak; $("#best").textContent = best;
+  (bumpWhich || []).forEach(id => bump($("#" + id)));
+}
+const slotBtn = i => $$(".slot")[i].querySelector(".num");
+
+function render(pops = [], mergeIdx = -1, popDelay = 0){
+  $$(".slot").forEach((el, i) => {
+    el.style.zIndex = "";
+    const v = slots[i];
+    if(!v){ el.replaceChildren(); return; }
+    const b = document.createElement("button");
+    b.type = "button";
+    const len = txt(v).length;
+    let cls = "num" + (v.d !== 1 ? " isfrac" : len >= 4 ? " long" : len === 3 ? " mid" : "");
+    if(selected === i) cls += " sel";
+    if(hint && (hint.a === i || hint.b === i)) cls += " hinted";
+    b.className = cls;
+    b.innerHTML = html(v) + (selected === i && op ? `<span class="badge">${SYM[op]}</span>` : "");
+    b.setAttribute("aria-label", "Number " + txt(v));
+    b.addEventListener("click", () => tapNum(i));
+    el.replaceChildren(b);
+    if(RM) return;
+    if(pops.includes(i)) b.animate([{ transform:"scale(.3)", opacity:0 }, { transform:"scale(1.1)", opacity:1, offset:.7 }, { transform:"scale(1)" }], { duration:380, delay:popDelay + pops.indexOf(i) * 70, easing:"ease-out", fill:"backwards" });
+    else if(mergeIdx === i) b.animate([{ transform:"translateY(-5px) scale(1.4)", filter:"brightness(1.15)" }, { transform:"translateY(-5px) scale(1.04)" }], { duration:380, easing:"cubic-bezier(.2,.9,.3,1.4)" });
+  });
+  $$(".chip").forEach(c => {
+    c.setAttribute("aria-pressed", String(c.dataset.op === op));
+    c.disabled = won || flipped;
+    c.classList.toggle("hinted", !!hint && hint.op === c.dataset.op && selected === hint.a && !op);
+  });
+  $("#undo").disabled = won || flipped || timedOut || !history.length;
+  $("#reset").disabled = won || flipped || timedOut || !history.length;
+  $("#hint").disabled = won || flipped || timedOut || (mode === "race" && (raceHints <= 0 || !curRound));
+  $("#hintLbl").textContent = mode === "race" ? `Hint (${raceHints})` : "Hint";
+  $("#flip").disabled = mode === "race" && !won && !timedOut;
+  trailEl.textContent = trail.join("   ·   ");
+}
+
+function load(){
+  const c = currentCard;
+  slots = c.nums.map(n => fr(n)); history = []; trail = []; selected = null; op = null;
+  won = false; flipped = false; revealed = false; hint = null; timedOut = false;
+  card.classList.add("instant"); card.classList.remove("flipped", "won"); void card.offsetWidth; card.classList.remove("instant");
+  hub.classList.remove("win");
+  $("#cdots").innerHTML = ('<i class="dot d' + c.d + '"></i>').repeat(c.d);
+  $("#blbl").textContent = "One way to make 24"; $("#beq").hidden = false;
+  $("#expr").textContent = c.sol;
+  const no = "No. " + String(c.id).padStart(4, "0");
+  $("#cardno").textContent = no; $("#bno").textContent = no; $("#bno").hidden = false;
+  $("#tag").hidden = !solved.has(c.key);
+  $("#flip span").textContent = "Answer";
+  startTimer();
+  setStatus(mode === "race" ? `Round ${curRound}. Go!` : "Tap a number, pick an operator, then tap another number.");
+  render([0,1,2,3], -1, 220);
+  updateMeta(); updateNext(); updateStats();
+}
+
+/* the card back doubles as the waiting screen in a race */
+function showWaiting(text){
+  clearInterval(tick); timedOut = false; $("#timer").textContent = fmt(RACE_LIMIT); $("#timer").parentElement.classList.remove("low");
+  slots = [null,null,null,null]; history = []; trail = []; selected = null; op = null; hint = null; won = false;
+  $("#blbl").textContent = "Room " + roomCode.toUpperCase();
+  $("#expr").textContent = text; $("#beq").hidden = true; $("#bno").hidden = true;
+  card.classList.add("instant"); card.classList.add("flipped"); card.classList.remove("won"); void card.offsetWidth; card.classList.remove("instant");
+  hub.classList.remove("win"); flipped = true;
+  setStatus(amHost ? "Deal the first card when everyone has joined." : "Waiting for the host to deal.");
+  render(); updateMeta(); updateNext();
+}
+
+function dealIn(){
+  if(RM) return;
+  dealer.animate([{ transform:"translate(28%,-75%) rotate(14deg) scale(.9)", opacity:0 }, { transform:"none", opacity:1 }], { duration:480, easing:"cubic-bezier(.2,.8,.2,1)", fill:"backwards" });
+}
+function deal(change){
+  if(busy){ setTimeout(() => deal(change), 150); return; }
+  busy = true; clearInterval(tick); S.deal();
+  const finish = (anim) => { change(); load(); if(anim) anim.cancel(); dealIn(); busy = false; };
+  if(RM){ finish(); return; }
+  const out = dealer.animate([{ transform:"none", opacity:1 }, { transform:"translate(-118%,10%) rotate(-17deg)", opacity:0 }], { duration:280, easing:"cubic-bezier(.5,0,.8,.3)", fill:"forwards" });
+  out.onfinish = () => finish(out);
+}
+function shake(){ if(!RM) dealer.animate([{ transform:"translateX(0)" }, { transform:"translateX(-11px) rotate(-1deg)" }, { transform:"translateX(9px) rotate(.8deg)" }, { transform:"translateX(-6px)" }, { transform:"translateX(3px)" }, { transform:"translateX(0)" }], { duration:420, easing:"ease-out" }); }
+
+/* ---------- play ---------- */
+function tapNum(i){
+  if(busy || won || flipped || timedOut) return;
+  if(selected === null){ selected = i; S.tap(); setStatus("Now pick + − × or ÷."); render(); return; }
+  if(selected === i){ selected = null; op = null; S.deselect(); setStatus("Tap a number, pick an operator, then tap another number."); render(); return; }
+  if(op === null){ selected = i; S.tap(); setStatus("Now pick + − × or ÷."); render(); return; }
+  combine(selected, i);
+}
+
+function combine(a, b){
+  const usedOp = op, r = OPS[usedOp](slots[a], slots[b]);
+  if(!r){ S.wrong(); shake(); setStatus("You can't divide by zero.", "bad"); return; }
+  busy = true; hint = null;
+  const line = `${txt(slots[a])} ${SYM[usedOp]} ${txt(slots[b])} = ${txt(r)}`;
+  S.combine();
+  const go = () => {
+    history.push({ slots:slots.slice(), trail:trail.slice() });
+    trail.push(line); slots[a] = null; slots[b] = r; selected = b; op = null; busy = false;
+    setStatus(line);
+    render([], b);
+    afterStep(b);
+  };
+  const ea = slotBtn(a), eb = slotBtn(b);
+  if(RM || !ea || !eb){ go(); return; }
+  const ra = ea.getBoundingClientRect(), rb = eb.getBoundingClientRect();
+  ea.parentElement.style.zIndex = 6;
+  ea.animate([{ transform:"translateY(-5px) scale(1.04)" }, { transform:`translate(${rb.left - ra.left}px,${rb.top - ra.top}px) scale(.55)`, opacity:.15 }], { duration:300, easing:"cubic-bezier(.55,0,.7,.25)", fill:"forwards" }).onfinish = go;
+}
+
+function afterStep(i){
+  if(slots.filter(Boolean).length !== 1) return;
+  if(is24(slots[i])) win(i);
+  else { S.wrong(); shake(); setStatus(`That makes ${txt(slots[i])}, not 24. Undo and try another way.`, "bad"); }
+}
+
+function win(i){
+  won = true; selected = null; stopTimer();
+  const c = currentCard, fresh = !solved.has(c.key), secs = elapsed();
+  solved.add(c.key); store.set("m24-solved", [...solved]);
+  const bumps = ["solved"];
+  if(mode === "solo" && !revealed){ streak++; bumps.push("streak"); if(streak > best){ best = streak; store.set("m24-best", best); bumps.push("best"); } }
+  if(mode === "race") raceSolved(secs);
+  render();
+  const finish = () => {
+    slots[i] = null; render();
+    hub.classList.add("win"); card.classList.add("won"); $("#tag").hidden = false;
+    S.win(); burst(hub);
+    if(mode === "race"){
+      if(!announceMyPlace()) setStatus(`Solved in ${fmt(secs)}! Checking who was first…`, "good");
+    } else {
+      setStatus(revealed ? `Solved in ${fmt(secs)}. You peeked, so no streak point.` : fresh ? `Solved in ${fmt(secs)}! Nice one.` : `Solved again in ${fmt(secs)}.`, "good");
+    }
+    updateNext(); updateStats(bumps);
+  };
+  const el = slotBtn(i);
+  if(RM || !el){ finish(); return; }
+  const re = el.getBoundingClientRect(), rh = hub.getBoundingClientRect();
+  el.parentElement.style.zIndex = 6;
+  el.animate([{ transform:"none" }, { transform:`translate(${rh.left + rh.width/2 - re.left - re.width/2}px,${rh.top + rh.height/2 - re.top - re.height/2}px) scale(.5)`, opacity:0 }], { duration:380, delay:120, easing:"cubic-bezier(.5,0,.3,1)", fill:"forwards" }).onfinish = finish;
+}
+
+function doUndo(){
+  if(busy || won || flipped || timedOut || !history.length) return;
+  const prev = slots, h = history.pop();
+  slots = h.slots; trail = h.trail; selected = null; op = null; hint = null;
+  S.undo(); setStatus(trail.length ? "Went back one step." : "Back to the start.");
+  render(slots.map((v,i) => v && !prev[i] ? i : -1).filter(i => i >= 0));
+}
+function doReset(){
+  if(busy || won || flipped || timedOut || !history.length) return;
+  slots = history[0].slots; history = []; trail = []; selected = null; op = null; hint = null;
+  S.undo(); setStatus("Back to the start.");
+  render([0,1,2,3]);
+}
+function doHint(){
+  if(busy || won || flipped || timedOut) return;
+  if(mode === "race" && (raceHints <= 0 || !curRound)){ S.deselect(); setStatus("No hints left for this game."); return; }
+  const steps = solveFrom(slots, true) || solveFrom(slots, false);
+  if(!steps || !steps.length){ S.wrong(); shake(); setStatus("There's no way to 24 from here. Undo a step.", "bad"); return; }
+  hint = steps[0]; selected = null; op = null;
+  let extra = "";
+  if(mode === "race"){ raceHints -= 1; extra = raceHints ? ` ${raceHints} hint${raceHints > 1 ? "s" : ""} left.` : " That was your last hint."; }
+  S.hint(); setStatus(`Try ${txt(slots[hint.a])} ${SYM[hint.op]} ${txt(slots[hint.b])} next.${extra}`);
+  render();
+}
+function doFlip(){
+  if(busy || (mode === "race" && !won && !timedOut)) return;
+  flipped = !flipped; card.classList.toggle("flipped", flipped); S.flip();
+  $("#flip span").textContent = flipped ? "Hide" : "Answer";
+  if(mode === "solo" && flipped && !won && !revealed){
+    revealed = true;
+    if(streak > 0){ streak = 0; updateStats(["streak"]); setStatus("Answer peeked. Streak reset.", "bad"); }
+  }
+  render();
+}
+function doNext(){
+  if(mode === "race"){ if(amHost) hostDeal(); return; }
+  if(!won && streak > 0){ streak = 0; }
+  deal(() => { idx = (idx + 1) % order.length; currentCard = DECK[order[idx]]; });
+}
+
+function updateMeta(){
+  if(mode === "race"){
+    $("#pos").textContent = curRound ? `Round ${curRound} · Room ${roomCode.toUpperCase()}` : `Room ${roomCode.toUpperCase()}`;
+    $("#lvl").textContent = curRound && currentCard ? LEVEL[currentCard.d] : "";
+  } else {
+    $("#pos").textContent = `Card ${idx + 1} of ${order.length.toLocaleString("en-AU")}`;
+    $("#lvl").textContent = currentCard ? LEVEL[currentCard.d] : "";
+  }
+}
+function updateNext(){
+  const n = $("#next"), label = n.querySelector("span");
+  if(mode === "race"){
+    /* a round only ends once every player has solved the card or the 5 minutes are up */
+    const done = everyoneDone(), left = waitingOn();
+    n.disabled = !amHost || !done;
+    n.classList.toggle("ready", amHost && done);
+    if(!done) label.textContent = left ? `Waiting for ${left} player${left === 1 ? "" : "s"}` : "Waiting for players";
+    else label.textContent = !amHost ? "The host deals the next card" : curRound ? "Deal next card" : "Deal first card";
+    return;
+  }
+  n.disabled = false;
+  n.classList.toggle("ready", won); label.textContent = won ? "Next card" : "Skip card";
+}
+
+/* ---------- multiplayer (Firebase Realtime Database) ----------
+   rooms/{code}/meta              { host, round, card, dealtAt, createdAt }
+   rooms/{code}/players/{uid}     { name, color, joinedAt }   (removed on disconnect)
+   rooms/{code}/solves/{round}/{uid} = server time of the solve
+   Scores are worked out from solves, so nobody has to keep a tally. */
+const FB_VER = "10.12.2", FB_BASE = `https://www.gstatic.com/firebasejs/${FB_VER}`;
+let F = null, fbState = "loading", uid = null, connOK = false, offset = 0;
+let meta = null, players = {}, solves = {}, nameSeen = {}, unsubs = [], myPlayerRef = null, myName = "", myJoinedAt = 0;
+let raceDealtAt = 0, scores = {}, roundOrder = [];
+const serverNow = () => Date.now() + offset;
+
+async function initFirebase(){
+  const cfg = window.FIREBASE_CONFIG;
+  if(!cfg || !cfg.apiKey || /PASTE/i.test(cfg.apiKey) || !cfg.databaseURL){ fbState = "unconfigured"; paintConn(); return; }
+  try {
+    const [appM, authM, dbM] = await Promise.all([
+      import(`${FB_BASE}/firebase-app.js`), import(`${FB_BASE}/firebase-auth.js`), import(`${FB_BASE}/firebase-database.js`)
+    ]);
+    const app = appM.initializeApp(cfg);
+    const auth = authM.getAuth(app);
+    const cred = await authM.signInAnonymously(auth);
+    uid = cred.user.uid;
+    const db = dbM.getDatabase(app);
+    F = Object.assign({ db }, dbM);
+    F.onValue(F.ref(db, ".info/serverTimeOffset"), s => { offset = Number(s.val()) || 0; });
+    F.onValue(F.ref(db, ".info/connected"), s => { connOK = !!s.val(); if(connOK) rejoinPresence(); paintConn(); });
+    fbState = "ready"; paintConn();
+  } catch(e){
+    console.error(e); fbState = "error"; paintConn();
+  }
+}
+
+function paintConn(){
+  let t, k;
+  if(fbState === "loading"){ t = "Connecting…"; k = "wait"; }
+  else if(fbState === "unconfigured"){ t = "Multiplayer isn't set up yet: add your Firebase settings to firebase-config.js."; k = "bad"; }
+  else if(fbState === "error"){ t = "Couldn't reach the game server. Check your connection and reload."; k = "bad"; }
+  else if(!connOK){ t = "Offline. Reconnecting…"; k = "wait"; }
+  else if(room){ const n = Object.keys(players).length; t = `Online · ${n} player${n === 1 ? "" : "s"} in this room`; k = "ok"; }
+  else { t = "Online and ready to play"; k = "ok"; }
+  $$(".conn").forEach(el => { el.textContent = t; el.dataset.k = k; });
+  $("#create").disabled = fbState !== "ready"; $("#join").disabled = fbState !== "ready";
+}
+
+function updateModeUI(){
+  $("#modeSolo").setAttribute("aria-pressed", String(tab === "solo"));
+  $("#modeFriends").setAttribute("aria-pressed", String(tab === "friends"));
+  $("#lobby").hidden = !(tab === "friends" && !room);
+  $("#roomPanel").hidden = !room;
+  $("#filters").hidden = mode === "race" && !amHost;
+  $("#rcode").textContent = roomCode.toUpperCase();
+  updateMeta(); updateNext(); render(); paintConn();
+}
+function setLobbyMsg(t){ $("#lmsg").textContent = t; }
+function genCode(){ const a = "abcdefghjkmnpqrstuvwxyz23456789"; let s = ""; for(let i = 0; i < 4; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
+const roomPath = (p = "") => `rooms/${roomCode}${p ? "/" + p : ""}`;
+
+async function joinRoom(code, asHost){
+  if(fbState !== "ready"){ paintConn(); return; }
+  const nm = cleanName($("#nick").value);
+  if(!nm){ setLobbyMsg("Add your name first so friends know who you are."); $("#nick").focus(); return; }
+  store.set("m24-nick", nm); setLobbyMsg("");
+  $("#create").disabled = true; $("#join").disabled = true;
+  try {
+    const metaRef = F.ref(F.db, `rooms/${code}/meta`);
+    const snap = await F.get(metaRef);
+    if(asHost){
+      if(snap.exists()){ code = genCode(); }
+      roomCode = code;
+      await F.set(myRef(), { name:nm, color:myColor, joinedAt:F.serverTimestamp() });
+      await F.set(F.ref(F.db, roomPath("meta")), { host:uid, round:0, card:-1, dealtAt:0, createdAt:F.serverTimestamp() });
+    } else {
+      if(!snap.exists()){ setLobbyMsg(`There's no room called ${code.toUpperCase()}. Check the code with your friend.`); paintConn(); return; }
+      roomCode = code;
+      await F.set(myRef(), { name:nm, color:myColor, joinedAt:F.serverTimestamp() });
+    }
+  } catch(e){
+    console.error(e); roomCode = "";
+    const why = String((e && (e.code || e.message)) || "").slice(0, 60);
+    setLobbyMsg(`Couldn't join the room${why ? ` (${why})` : ""}. Try again in a moment.`); paintConn(); return;
+  }
+  myPlayerRef = myRef(); myName = nm; myJoinedAt = 0;
+  F.onDisconnect(myPlayerRef).remove();
+  room = true; mode = "race"; tab = "friends"; amHost = asHost;
+  curRound = 0; raceHints = RACE_HINTS; raceDealtAt = 0; meta = null; players = {}; solves = {}; scores = {}; roundOrder = []; seenOrder = []; seenRound = 0;
+  if(location.hash.slice(1).toLowerCase() !== roomCode) history_replace("#" + roomCode);
+  unsubs = [
+    F.onValue(F.ref(F.db, roomPath("meta")), s => onMeta(s.val())),
+    F.onValue(F.ref(F.db, roomPath("players")), s => onPlayers(s.val() || {})),
+    F.onValue(F.ref(F.db, roomPath("solves")), s => onSolves(s.val() || {})),
+  ];
+  S.join();
+  showWaiting(asHost ? "Share the invite link, then deal the first card." : "Waiting for the host to deal the first card.");
+  updateModeUI();
+}
+function myRef(){ return F.ref(F.db, `rooms/${roomCode}/players/${uid}`); }
+/* phones drop the connection when the tab is backgrounded (say, to share the invite on WhatsApp), and onDisconnect
+   then removes our player node, so put it back, with the original joinedAt, every time we reconnect */
+function rejoinPresence(){
+  if(!room || !myPlayerRef) return;
+  F.onDisconnect(myPlayerRef).remove();
+  F.set(myPlayerRef, { name:myName, color:myColor, joinedAt:myJoinedAt || F.serverTimestamp() }).catch(e => console.error(e));
+}
+function history_replace(h){ try { window.history.replaceState(null, "", h); } catch(e){} }
+
+function leaveRoom(){
+  unsubs.forEach(u => { try { u(); } catch(e){} }); unsubs = [];
+  if(myPlayerRef){ F.onDisconnect(myPlayerRef).cancel().catch(() => {}); F.remove(myPlayerRef).catch(() => {}); myPlayerRef = null; }
+  room = null; roomCode = ""; mode = "solo"; amHost = false; curRound = 0; meta = null; players = {}; solves = {};
+  history_replace(location.pathname + location.search);
+  updateModeUI();
+  deal(() => { currentCard = DECK[order[idx]]; });
+}
+
+/* the host is whoever the room names, or, if they left, the player who has been here longest */
+function effectiveHost(){
+  if(meta && meta.host && players[meta.host]) return meta.host;
+  const ids = Object.keys(players).sort((a,b) => (players[a].joinedAt || 0) - (players[b].joinedAt || 0) || (a < b ? -1 : 1));
+  return ids[0] || null;
+}
+function refreshHost(){
+  const was = amHost;
+  amHost = effectiveHost() === uid;
+  if(amHost && !was && curRound){ S.join(); setStatus("The host left, so you're the host now."); }
+  if(was !== amHost) updateModeUI();
+}
+
+function onMeta(m){
+  if(!m){ if(room){ setStatus("This room was closed.", "bad"); leaveRoom(); } return; }
+  meta = m;
+  refreshHost();
+  if(Number.isInteger(m.round) && m.round > curRound && DECK[m.card]) startRound(m.round, m.card, Number(m.dealtAt) || serverNow());
+  else if(m.round === curRound && m.dealtAt && m.dealtAt !== raceDealtAt){ raceDealtAt = m.dealtAt; resyncTimer(); }
+}
+function onPlayers(p){
+  players = {};
+  for(const [id, v] of Object.entries(p)){
+    if(!v || typeof v !== "object") continue;
+    const nm = cleanName(v.name); if(!nm) continue;
+    players[id] = { name:nm, color:COLORS.includes(v.color) ? v.color : "#A3BDB0", joinedAt:Number(v.joinedAt) || 0 };
+    nameSeen[id] = nm;
+  }
+  if(players[uid] && !myJoinedAt) myJoinedAt = players[uid].joinedAt;
+  if(!p[uid] && connOK) rejoinPresence();
+  refreshHost(); renderPlayers(); updateNext(); paintConn();
+}
+function onSolves(all){
+  solves = all; scores = {};
+  for(const [r, entries] of Object.entries(all)){
+    if(!entries || typeof entries !== "object") continue;
+    const ordered = Object.entries(entries).filter(([, t]) => typeof t === "number").sort((a,b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1)).map(([id]) => id);
+    ordered.forEach((id, i) => { scores[id] = (scores[id] || 0) + (PTS[i] ?? 1); });
+    if(+r === curRound) roundOrder = ordered;
+  }
+  if(!all[curRound]) roundOrder = [];
+  noticeSolves(); renderPlayers(); updateNext();
+}
+
+function hostDeal(){
+  if(!amHost || busy || !room || !everyoneDone()) return;
+  const pool = DECK.map((c,i) => i).filter(i => !filter || DECK[i].d === filter);
+  let pick = pool[Math.floor(Math.random() * pool.length)];
+  if(meta && pick === meta.card && pool.length > 1) pick = pool[(pool.indexOf(pick) + 1) % pool.length];
+  F.update(F.ref(F.db, roomPath("meta")), { host:uid, round:((meta && meta.round) || 0) + 1, card:pick, dealtAt:F.serverTimestamp() })
+    .catch(e => { console.error(e); setStatus("Couldn't deal the card. Try again.", "bad"); });
+}
+function startRound(r, cardIdx, dealtAt){
+  curRound = r; raceDealtAt = dealtAt; seenOrder = []; seenRound = r; roundOrder = [];
+  const entries = solves[r]; if(entries) onSolves(solves);
+  deal(() => { currentCard = DECK[cardIdx]; });
+}
+function resyncTimer(){ if(mode === "race" && curRound && !won && !timedOut){ t0 = performance.now() - Math.max(0, serverNow() - raceDealtAt); paintTimer(); } }
+
+function raceSolved(){
+  if(!room || !curRound) return;
+  F.set(F.ref(F.db, roomPath(`solves/${curRound}/${uid}`)), F.serverTimestamp())
+    .catch(e => { console.error(e); setStatus("Solved, but it didn't reach the server in time, so no points.", "bad"); });
+}
+function everyoneDone(){
+  if(!curRound) return true;
+  if(serverNow() > raceDealtAt + RACE_LIMIT * 1000) return true;
+  return Object.keys(players).length > 0 && waitingOn() === 0;
+}
+function waitingOn(){ return curRound ? Object.keys(players).filter(id => !roundOrder.includes(id)).length : 0; }
+function announceMyPlace(){
+  if(!won) return false;
+  const place = roundOrder.indexOf(uid) + 1;
+  if(!place) return false;
+  const pts = PTS[place - 1] ?? 1;
+  setStatus(`You finished ${ord(place)}! +${pts} point${pts > 1 ? "s" : ""}`, "good");
+  return true;
+}
+let flashId = null;
+function noticeSolves(){
+  if(seenRound !== curRound){ seenRound = curRound; seenOrder = []; }
+  const fresh = roundOrder.filter(id => !seenOrder.includes(id));
+  seenOrder = roundOrder.slice();
+  for(const id of fresh){
+    if(id === uid){ announceMyPlace(); continue; }
+    if(!won && !timedOut && mode === "race"){ S.rival(); setStatus(`${nameSeen[id] || "Someone"} got 24. Keep going!`); }
+    flashId = id;
+  }
+}
+function renderPlayers(){
+  const box = $("#players");
+  const ids = new Set([...Object.keys(players), ...Object.keys(scores)]);
+  const host = effectiveHost();
+  const rows = [...ids].map(id => ({
+    id, here:!!players[id], me:id === uid, host:id === host,
+    name: (players[id] && players[id].name) || nameSeen[id] || "Player",
+    color: (players[id] && players[id].color) || "#A3BDB0",
+    score: scores[id] || 0,
+    place: curRound ? roundOrder.indexOf(id) + 1 : 0,
+  })).sort((a,b) => b.score - a.score || (a.name < b.name ? -1 : 1));
+  box.replaceChildren(...rows.map(r => {
+    const el = document.createElement("div");
+    el.className = "pl" + (r.me ? " me" : "") + (r.here ? "" : " gone");
+    const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = r.color; sw.textContent = r.name.slice(0,1).toUpperCase();
+    const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = r.name + (r.me ? " (you)" : "");
+    const sc = document.createElement("span"); sc.className = "sc"; sc.textContent = r.score;
+    el.append(sw, nm);
+    if(r.host){ const t = document.createElement("span"); t.className = "tagx"; t.textContent = "Host"; el.append(t); }
+    if(r.place){ const t = document.createElement("span"); t.className = "pl-place"; t.textContent = ord(r.place); el.append(t); }
+    el.append(sc);
+    if(r.id === flashId && !RM) el.animate([{ transform:"scale(1.15)", background:"rgba(233,188,69,.4)" }, { transform:"scale(1)" }], { duration:600, easing:"cubic-bezier(.2,.9,.3,1.3)" });
+    return el;
+  }));
+  flashId = null;
+}
+
+/* ---------- controls ---------- */
+$$(".chip").forEach(c => c.addEventListener("click", () => {
+  if(busy || won || flipped || timedOut) return;
+  if(selected === null){ S.deselect(); setStatus("Pick a number first, then the operator."); return; }
+  op = op === c.dataset.op ? null : c.dataset.op;
+  S.op(); setStatus(op ? "Now tap the second number." : "Now pick + − × or ÷."); render();
+}));
+$("#undo").addEventListener("click", doUndo);
+$("#reset").addEventListener("click", doReset);
+$("#hint").addEventListener("click", doHint);
+$("#flip").addEventListener("click", doFlip);
+$("#next").addEventListener("click", doNext);
+$("#sound").addEventListener("click", () => { soundOn = !soundOn; store.set("m24-sound", soundOn); paintSound(); if(soundOn){ S.init(); S.tap(); } });
+$$(".fchip").forEach(c => c.addEventListener("click", () => {
+  if(busy) return;
+  $$(".fchip").forEach(x => x.setAttribute("aria-pressed", String(x === c)));
+  filter = +c.dataset.f;
+  if(mode === "race"){ setStatus(`Next card will be ${filter ? LEVEL[filter] : "any level"}.`); return; }
+  deal(() => { buildOrder(); currentCard = DECK[order[0]]; });
+}));
+$("#modeSolo").addEventListener("click", () => { tab = "solo"; if(room) leaveRoom(); else updateModeUI(); });
+$("#modeFriends").addEventListener("click", () => { tab = "friends"; updateModeUI(); });
+$("#create").addEventListener("click", () => joinRoom(genCode(), true));
+$("#join").addEventListener("click", () => {
+  const code = $("#codeIn").value.trim().toLowerCase();
+  if(!/^[a-z0-9]{4}$/.test(code)){ setLobbyMsg("Room codes are 4 letters or numbers."); return; }
+  joinRoom(code, false);
+});
+$("#codeIn").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); $("#join").click(); } });
+$("#leave").addEventListener("click", () => { tab = "friends"; leaveRoom(); });
+$("#copy").addEventListener("click", () => {
+  const link = location.origin + location.pathname + "#" + roomCode;
+  const text = `Play Make it 24 with me! Room ${roomCode.toUpperCase()}`;
+  const done = () => { $("#copy").textContent = "Link copied"; setTimeout(() => { $("#copy").textContent = "Invite"; }, 1600); };
+  if(navigator.share && matchMedia("(pointer: coarse)").matches){ navigator.share({ title:"Make it 24", text, url:link }).catch(() => {}); return; }
+  try { navigator.clipboard.writeText(text + "\n" + link).then(done, selectCode); } catch(e){ selectCode(); }
+});
+function selectCode(){ const r = document.createRange(); r.selectNodeContents($("#rcode")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+
+document.addEventListener("keydown", e => {
+  if(e.target.closest && (e.target.closest("summary") || e.target.closest("input"))) return;
+  if(e.key >= "1" && e.key <= "4"){ const i = +e.key - 1; if(slots[i]) tapNum(i); }
+  else if(e.key.length === 1 && "+-*/xX".includes(e.key)){ const k = (e.key === "x" || e.key === "X") ? "*" : e.key; const b = $(`.chip[data-op="${k}"]`); if(b) b.click(); }
+  else if(e.key === "Backspace"){ e.preventDefault(); doUndo(); }
+  else if(e.key === "h" || e.key === "H") doHint();
+  else if(e.key === "Enter" && !(e.target.closest && e.target.closest("button"))) doNext();
+});
+
+/* ---------- confetti ---------- */
+const fx = $("#fx"), g = fx.getContext("2d");
+let parts = [], raf = 0;
+function sizeFx(){ const d = window.devicePixelRatio || 1; fx.width = innerWidth * d; fx.height = innerHeight * d; g.setTransform(d, 0, 0, d, 0, 0); }
+addEventListener("resize", sizeFx); sizeFx();
+function burst(el){
+  if(RM) return;
+  const r = el.getBoundingClientRect(), x = r.left + r.width/2, y = r.top + r.height/2;
+  const cols = ["#E9BC45","#D2483C","#F7F2E2","#2F6BB3","#3FB37F"];
+  for(let k = 0; k < 150; k++){
+    const a = Math.random() * Math.PI * 2, s = 4 + Math.random() * 9;
+    parts.push({ x, y, vx:Math.cos(a) * s, vy:Math.sin(a) * s - 5, w:5 + Math.random() * 6, h:3 + Math.random() * 4, c:cols[k % cols.length], rot:Math.random() * 6, vr:(Math.random() - .5) * .4, life:1, round:Math.random() < .3 });
+  }
+  if(!raf) raf = requestAnimationFrame(step);
+}
+function step(){
+  g.clearRect(0, 0, innerWidth, innerHeight);
+  for(const p of parts){
+    p.vy += .32; p.vx *= .985; p.vy *= .985; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life -= .011;
+    g.save(); g.globalAlpha = Math.max(p.life, 0); g.translate(p.x, p.y); g.rotate(p.rot); g.fillStyle = p.c;
+    if(p.round){ g.beginPath(); g.arc(0, 0, p.h, 0, Math.PI * 2); g.fill(); } else g.fillRect(-p.w/2, -p.h/2, p.w, p.h * Math.abs(Math.cos(p.rot * 2)) + 1);
+    g.restore();
+  }
+  parts = parts.filter(p => p.life > 0 && p.y < innerHeight + 30);
+  raf = parts.length ? requestAnimationFrame(step) : 0;
+  if(!raf) g.clearRect(0, 0, innerWidth, innerHeight);
+}
+
+/* ---------- start ---------- */
+$("#nick").value = cleanName(store.get("m24-nick", ""));
+const hashCode = (location.hash || "").slice(1).toLowerCase();
+if(/^[a-z0-9]{4}$/.test(hashCode)){ $("#codeIn").value = hashCode.toUpperCase(); tab = "friends"; setLobbyMsg("You've been invited! Add your name and tap Join."); }
+paintSound(); buildOrder(); currentCard = DECK[order[0]]; load(); dealIn(); updateModeUI();
+paintConn(); initFirebase();
+</script>
+
+</body>
+</html>
