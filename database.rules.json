@@ -21,6 +21,12 @@
           "createdAt": {
             ".validate": "newData.isNumber()"
           },
+          "len": {
+            ".validate": "newData.val() === 10 || newData.val() === 15 || newData.val() === 20"
+          },
+          "base": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+          },
           "$other": {
             ".validate": false
           }
