@@ -10,7 +10,7 @@ Use four numbers and + − × ÷ to make 24. Play solo through 1,362 cards, or r
 
 - 1,362 cards with numbers 1 to 13, every one solvable, sorted into easy, medium and hard
 - Solo mode with streaks, hints, and the answer when you're stuck
-- Race your friends: share a room link, play 10, 15 or 20 rounds on the same cards, 5 minutes per round, points for finishing 1st, 2nd and beyond, and a podium at the end
+- Race your friends: share a room link, play 10, 15 or 20 rounds on the same cards, 3 minutes per round, an optional no-hints mode, points for finishing 1st, 2nd and beyond, and a podium at the end
 - Taunt your rivals with quick reactions and chat bubbles while they're still thinking
 - Works in any phone browser, no account or install needed
 
