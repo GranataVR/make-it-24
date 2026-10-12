@@ -206,6 +206,26 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .pl .pl-place{font-size:10.5px;font-weight:800;padding:2px 6px;border-radius:999px;background:var(--gold);color:var(--ink)}
 .pl.me{border-color:rgba(233,188,69,.7)}
 .pl.gone{opacity:.45}
+/* chat: quick taunts, a log you can open, and bubbles that float over the table when a message lands */
+.taunts{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px;margin:-2px}
+.taunts::-webkit-scrollbar{display:none}
+.taunt{flex:none;border:1px solid rgba(243,238,220,.2);background:rgba(243,238,220,.06);color:var(--cream);font:600 13px var(--f-body);padding:7px 11px;border-radius:999px;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.taunt:active{background:var(--gold);color:var(--ink)}
+.chat summary{font-size:13.5px}
+.chatlog{list-style:none;margin:10px 0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:190px;overflow-y:auto;font-size:14px}
+.chatlog li{line-height:1.4;overflow-wrap:anywhere}
+.chatlog b{font-weight:800;margin-right:6px}
+.chatlog .empty{color:var(--muted);font-size:13px}
+.bubbles{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;width:min(calc(100vw - 32px),400px)}
+.bubble{display:flex;align-items:center;gap:8px;max-width:100%;padding:8px 14px 8px 8px;border-radius:18px 18px 18px 6px;background:var(--ivory);color:var(--ink);font:600 14.5px/1.35 var(--f-body);box-shadow:0 12px 26px -8px rgba(0,0,0,.65);animation:bubIn .35s cubic-bezier(.2,.9,.3,1.3)}
+.bubble.mine{background:var(--gold)}
+.bubble .sw{width:22px;height:22px;border-radius:50%;flex:none;display:grid;place-items:center;color:var(--ink);font:800 11px var(--f-body);box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.25)}
+.bubble .t{overflow-wrap:anywhere}
+.bubble b{font-weight:800;margin-right:5px}
+.bubble.out{animation:bubOut .4s ease-in forwards}
+@keyframes bubIn{from{opacity:0;transform:translateY(-12px) scale(.9)}}
+@keyframes bubOut{to{opacity:0;transform:translateY(-8px)}}
+@media (prefers-reduced-motion:reduce){.bubble,.bubble.out{animation:none}}
 .takeover{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted)}
 .next:disabled{opacity:.5;cursor:default}
 .conn{display:flex;align-items:flex-start;gap:7px;font-size:12.5px;line-height:1.45;color:var(--muted)}
@@ -251,6 +271,12 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
       <div class="rbtns"><button class="btn" type="button" id="copy">Invite</button><button class="btn" type="button" id="leave">Leave</button></div>
     </div>
     <div class="players" id="players" aria-live="polite"></div>
+    <div class="taunts" id="taunts" role="group" aria-label="Quick taunts"></div>
+    <details class="chat" id="chatBox">
+      <summary>Chat <span id="chatCount"></span></summary>
+      <ol class="chatlog" id="chatLog"></ol>
+      <div class="joinrow"><input class="inp" id="chatIn" maxlength="80" placeholder="Talk some trash…" autocomplete="off" enterkeyhint="send" aria-label="Chat message"><button class="btn gold" type="button" id="chatSend">Send</button></div>
+    </details>
     <div class="conn"></div>
   </section>
 
@@ -323,6 +349,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
   <footer class="credit">Made by <a href="https://github.com/granodioritee" target="_blank" rel="noopener">granodioritee</a> · <a href="https://github.com/granodioritee/make-it-24" target="_blank" rel="noopener" id="starLink">⭐ Star on GitHub</a></footer>
 </div>
 <canvas id="fx" aria-hidden="true"></canvas>
+<div class="bubbles" id="bubbles" aria-live="polite"></div>
 
 <script src="firebase-config.js"></script>
 <script>
@@ -383,6 +410,7 @@ const S = (() => {
     flip(){ noise(.24,{vol:.2,freq:500,sweep:3200,q:.8}); },
     deal(){ noise(.18,{vol:.18,freq:3200,sweep:1100,q:.7}); tone(150,.09,{vol:.14,at:.16}); },
     rival(){ tone(988,.09,{type:"square",vol:.05}); tone(740,.14,{type:"square",vol:.05,at:.09}); },
+    chat(){ tone(1047,.07,{vol:.1}); tone(1397,.1,{vol:.08,at:.06}); },
     join(){ tone(660,.1,{vol:.12}); tone(990,.16,{vol:.1,at:.08}); },
     tick(){ tone(1250,.04,{type:"square",vol:.045}); },
     timeup(){ tone(233,.55,{type:"sawtooth",vol:.08,to:150}); tone(220,.55,{type:"square",vol:.04,to:140,at:.02}); },
@@ -695,6 +723,7 @@ function updateNext(){
    rooms/{code}/meta              { host, round, card, dealtAt, createdAt }
    rooms/{code}/players/{uid}     { name, color, joinedAt }   (removed on disconnect)
    rooms/{code}/solves/{round}/{uid} = server time of the solve
+   rooms/{code}/chat/{pushId}     { by, t, at }   taunts and chat; only the last 30 are loaded
    Scores are worked out from solves, so nobody has to keep a tally. */
 const FB_VER = "10.12.2", FB_BASE = `https://www.gstatic.com/firebasejs/${FB_VER}`;
 let F = null, fbState = "loading", uid = null, connOK = false, offset = 0;
@@ -711,6 +740,8 @@ async function initFirebase(){
     ]);
     const app = appM.initializeApp(cfg);
     const auth = authM.getAuth(app);
+    /* ?seat in the URL keeps the player per browser tab, so several players can be tested from one device */
+    if(new URLSearchParams(location.search).has("seat")) await authM.setPersistence(auth, authM.browserSessionPersistence);
     const cred = await authM.signInAnonymously(auth);
     uid = cred.user.uid;
     const db = dbM.getDatabase(app);
@@ -776,11 +807,13 @@ async function joinRoom(code, asHost){
   F.onDisconnect(myPlayerRef).remove();
   room = true; mode = "race"; tab = "friends"; amHost = asHost;
   curRound = 0; raceHints = RACE_HINTS; raceDealtAt = 0; meta = null; players = {}; solves = {}; scores = {}; roundOrder = []; seenOrder = []; seenRound = 0;
+  chat = []; chatSeen = null; renderChat();
   if(location.hash.slice(1).toLowerCase() !== roomCode) history_replace("#" + roomCode);
   unsubs = [
     F.onValue(F.ref(F.db, roomPath("meta")), s => onMeta(s.val())),
     F.onValue(F.ref(F.db, roomPath("players")), s => onPlayers(s.val() || {})),
     F.onValue(F.ref(F.db, roomPath("solves")), s => onSolves(s.val() || {})),
+    F.onValue(F.query(F.ref(F.db, roomPath("chat")), F.limitToLast(30)), s => onChat(s.val()), e => console.warn(e)),
   ];
   S.join();
   track(asHost ? "room_create" : "room_join");
@@ -801,6 +834,7 @@ function leaveRoom(){
   unsubs.forEach(u => { try { u(); } catch(e){} }); unsubs = [];
   if(myPlayerRef){ F.onDisconnect(myPlayerRef).cancel().catch(() => {}); F.remove(myPlayerRef).catch(() => {}); myPlayerRef = null; }
   room = null; roomCode = ""; mode = "solo"; amHost = false; curRound = 0; meta = null; players = {}; solves = {};
+  chat = []; chatSeen = null; $("#bubbles").replaceChildren();
   history_replace(location.pathname + location.search);
   updateModeUI();
   deal(() => { currentCard = DECK[order[idx]]; });
@@ -923,6 +957,65 @@ function renderPlayers(){
   }));
   flashId = null;
 }
+
+/* ---------- chat and taunts ---------- */
+const TAUNTS = ["Too slow 🐢", "Easy 😎", "Is it that hard? 🤔", "Hurry up ⏰", "GG 🤝", "😂", "🔥", "💀"];
+const CHAT_MAX = 80;
+const cleanText = s => String(s == null ? "" : s).replace(CTRL_RE, "").replace(/\s+/g, " ").trim().slice(0, CHAT_MAX);
+let chat = [], chatSeen = null, lastSent = 0;
+const chatName = id => id === uid ? "You" : (players[id] && players[id].name) || nameSeen[id] || "Someone";
+function onChat(v){
+  const list = Object.entries(v || {})
+    .filter(([, m]) => m && typeof m.by === "string" && typeof m.t === "string")
+    .map(([k, m]) => ({ k, by:m.by, t:cleanText(m.t), at:Number(m.at) || 0 }))
+    .filter(m => m.t).sort((a, b) => a.at - b.at || (a.k < b.k ? -1 : 1));
+  /* messages already there when you join go in the log quietly; only new ones pop up */
+  const fresh = chatSeen ? list.filter(m => !chatSeen.has(m.k)) : [];
+  chatSeen = new Set(list.map(m => m.k)); chat = list;
+  fresh.forEach(m => { bubble(m); if(m.by !== uid) S.chat(); });
+  renderChat();
+}
+function sendChat(text){
+  const t = cleanText(text);
+  if(!t || !room || !F) return false;
+  if(Date.now() - lastSent < 1200) return false;
+  lastSent = Date.now();
+  F.push(F.ref(F.db, roomPath("chat")), { by:uid, t, at:F.serverTimestamp() })
+    .then(() => track("chat_send", { quick:TAUNTS.includes(t) }))
+    .catch(e => { console.error(e); setStatus("Your message didn't go through.", "bad"); });
+  return true;
+}
+function bubble(m){
+  const box = $("#bubbles"), p = players[m.by];
+  const el = document.createElement("div"); el.className = "bubble" + (m.by === uid ? " mine" : "");
+  const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = p ? p.color : "#A3BDB0";
+  sw.textContent = ((p && p.name) || nameSeen[m.by] || "?").slice(0, 1).toUpperCase();
+  const tx = document.createElement("span"); tx.className = "t";
+  const b = document.createElement("b"); b.textContent = chatName(m.by);
+  tx.append(b, document.createTextNode(m.t));
+  el.append(sw, tx); box.append(el);
+  while(box.children.length > 3) box.firstChild.remove();
+  setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 450); }, 4200);
+}
+function renderChat(){
+  const log = $("#chatLog");
+  if(!chat.length){ const li = document.createElement("li"); li.className = "empty"; li.textContent = "No messages yet. Say hi, or talk some trash."; log.replaceChildren(li); }
+  else log.replaceChildren(...chat.map(m => {
+    const li = document.createElement("li"), b = document.createElement("b");
+    b.style.color = (players[m.by] && players[m.by].color) || "var(--muted)"; b.textContent = chatName(m.by);
+    li.append(b, document.createTextNode(m.t)); return li;
+  }));
+  log.scrollTop = log.scrollHeight;
+  $("#chatCount").textContent = chat.length ? `(${chat.length})` : "";
+}
+$("#taunts").replaceChildren(...TAUNTS.map(t => {
+  const b = document.createElement("button"); b.type = "button"; b.className = "taunt"; b.textContent = t;
+  b.addEventListener("click", () => { if(sendChat(t)) S.tap(); });
+  return b;
+}));
+$("#chatSend").addEventListener("click", () => { const i = $("#chatIn"); if(sendChat(i.value)) i.value = ""; i.focus(); });
+$("#chatIn").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); $("#chatSend").click(); } });
+$("#chatBox").addEventListener("toggle", () => { const log = $("#chatLog"); log.scrollTop = log.scrollHeight; });
 
 /* ---------- controls ---------- */
 $$(".chip").forEach(c => c.addEventListener("click", () => {
