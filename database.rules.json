@@ -50,6 +50,24 @@
               ".validate": "newData.isNumber() && newData.val() === now && now <= root.child('rooms').child($code).child('meta').child('dealtAt').val() + 305000"
             }
           }
+        },
+        "chat": {
+          "$m": {
+            ".write": "auth != null && !data.exists() && root.child('rooms').child($code).child('players').child(auth.uid).exists()",
+            ".validate": "newData.hasChildren(['by', 't', 'at']) && newData.child('by').val() === auth.uid",
+            "by": {
+              ".validate": "newData.isString()"
+            },
+            "t": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 80"
+            },
+            "at": {
+              ".validate": "newData.val() === now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
         }
       }
     },
