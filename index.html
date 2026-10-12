@@ -295,7 +295,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 
   <section class="panel" id="lobby" hidden>
     <h2>Race your friends</h2>
-    <p>Everyone gets the same card and 5 minutes to solve it. First to make 24 scores 3 points, second gets 2, everyone else who solves it gets 1. Run out of time and you get 0 and see the answer. Each player has 3 hints for the whole game.</p>
+    <p>Everyone gets the same card and 5 minutes to solve it. First to make 24 scores 3 points, second gets 2, third gets 1, and everyone after that gets 0. Run out of time and you get 0 and see the answer. Once everyone is done, the next card comes after a 3 second countdown. Each player has 3 hints for the whole game.</p>
     <div class="field"><label for="nick">Your name</label><input class="inp" id="nick" maxlength="16" placeholder="e.g. Nate" autocomplete="off"></div>
     <button class="btn gold" type="button" id="create">Create a room</button>
     <div class="or">or join one</div>
@@ -520,7 +520,9 @@ let timedOut = false, raceHints = 3, lastTickSec = -1;
 /* multiplayer state */
 let mode = "solo", tab = "solo", room = null, roomCode = "";
 let amHost = false, curRound = 0, seenOrder = [], seenRound = 0;
-const PTS = [3, 2];
+const PTS = [3, 2, 1]; /* 1st, 2nd, 3rd; anyone after that scores 0 */
+const NEXT_DELAY = 3000;
+let autoFor = 0, autoAt = 0, autoSec = -1, dealtFor = -1;
 const COLORS = ["#E9BC45","#E2665B","#5DA9E9","#57C08A","#C792EA","#F29E4C","#7FD1C7","#F7F2E2"];
 let myColor = store.get("m24-color", null);
 if(!COLORS.includes(myColor)){ myColor = COLORS[Math.floor(Math.random() * COLORS.length)]; store.set("m24-color", myColor); }
@@ -762,6 +764,16 @@ function updateNext(){
     checkMatch();
     if(matchOver()){ n.disabled = false; n.classList.add("ready"); label.textContent = "See results"; return; }
     const done = everyoneDone(), left = waitingOn();
+    /* once everyone is done, the next card comes by itself after a short countdown (the host can tap to skip it) */
+    if(done && matchRound() > 0){
+      if(autoFor !== curRound){ autoFor = curRound; autoAt = serverNow() + NEXT_DELAY; autoSec = -1; }
+      const s = Math.max(0, Math.ceil((autoAt - serverNow()) / 1000));
+      if(s !== autoSec){ autoSec = s; if(s > 0) S.tick(); }
+      if(s === 0 && amHost) hostDeal();
+      n.disabled = !amHost; n.classList.add("ready");
+      label.textContent = s > 0 ? `Next card in ${s}…` : "Dealing…";
+      return;
+    }
     n.disabled = !amHost || !done;
     n.classList.toggle("ready", amHost && done);
     if(!done) label.textContent = left ? `Waiting for ${left} player${left === 1 ? "" : "s"}` : "Waiting for players";
@@ -945,7 +957,7 @@ function onSolves(all){
     const ordered = Object.entries(entries).filter(([, t]) => typeof t === "number").sort((a,b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1)).map(([id]) => id);
     if(+r === curRound) roundOrder = ordered;
     if(+r <= matchBase || +r > matchBase + matchLen) continue; /* only this game's rounds count */
-    ordered.forEach((id, i) => { scores[id] = (scores[id] || 0) + (PTS[i] ?? 1); solvedN[id] = (solvedN[id] || 0) + 1; });
+    ordered.forEach((id, i) => { scores[id] = (scores[id] || 0) + (PTS[i] ?? 0); solvedN[id] = (solvedN[id] || 0) + 1; });
     if(ordered[0]) wins[ordered[0]] = (wins[ordered[0]] || 0) + 1;
   }
   if(!all[curRound]) roundOrder = [];
@@ -962,9 +974,12 @@ function pickCard(){
 }
 function hostDeal(){
   if(!amHost || busy || !room || !everyoneDone() || matchRound() >= matchLen) return;
+  /* the countdown calls this on every tick, so deal each round only once */
+  if(dealtFor === curRound) return;
+  dealtFor = curRound;
   F.update(F.ref(F.db, roomPath("meta")), { host:uid, round:((meta && meta.round) || 0) + 1, card:pickCard(), dealtAt:F.serverTimestamp() })
     .then(() => track("round_start", { players:Object.keys(players).length }))
-    .catch(e => { console.error(e); setStatus("Couldn't deal the card. Try again.", "bad"); });
+    .catch(e => { console.error(e); dealtFor = -1; setStatus("Couldn't deal the card. Try again.", "bad"); });
 }
 function startRound(r, cardIdx, dealtAt){
   curRound = r; raceDealtAt = dealtAt; seenOrder = []; seenRound = r; roundOrder = [];
@@ -990,8 +1005,8 @@ function announceMyPlace(){
   if(!won) return false;
   const place = roundOrder.indexOf(uid) + 1;
   if(!place) return false;
-  const pts = PTS[place - 1] ?? 1;
-  setStatus(`You finished ${ord(place)}! +${pts} point${pts > 1 ? "s" : ""}`, "good");
+  const pts = PTS[place - 1] ?? 0;
+  setStatus(pts ? `You finished ${ord(place)}! +${pts} point${pts > 1 ? "s" : ""}` : `Solved, but you finished ${ord(place)}. Only the top 3 score.`, "good");
   return true;
 }
 let flashId = null;
@@ -1117,7 +1132,7 @@ $("#resClose").addEventListener("click", () => { $("#results").hidden = true; })
 $("#resAgain").addEventListener("click", newMatch);
 $("#results").addEventListener("click", e => { if(e.target === $("#results")) $("#results").hidden = true; });
 /* a round can also end because time ran out after you'd already solved it, so keep checking */
-setInterval(() => { if(room && mode === "race"){ updateNext(); renderLen(); } }, 1000);
+setInterval(() => { if(room && mode === "race"){ updateNext(); renderLen(); } }, 250);
 
 /* ---------- chat and taunts ---------- */
 const TAUNTS = ["Too slow 🐢", "Easy 😎", "Is it that hard? 🤔", "Hurry up ⏰", "GG 🤝", "😂", "🔥", "💀"];
