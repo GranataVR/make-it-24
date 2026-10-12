@@ -27,6 +27,9 @@
           "base": {
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
           },
+          "hints": {
+            ".validate": "newData.isBoolean()"
+          },
           "$other": {
             ".validate": false
           }
@@ -53,7 +56,7 @@
           "$round": {
             "$uid": {
               ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('rooms').child($code).child('players').child($uid).exists()",
-              ".validate": "newData.isNumber() && newData.val() === now && now <= root.child('rooms').child($code).child('meta').child('dealtAt').val() + 305000"
+              ".validate": "newData.isNumber() && newData.val() === now && now <= root.child('rooms').child($code).child('meta').child('dealtAt').val() + 185000"
             }
           }
         },
