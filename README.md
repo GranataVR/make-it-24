@@ -19,4 +19,4 @@ One HTML file with no build step, hosted on GitHub Pages. Multiplayer runs on Fi
 
 ---
 
-Made by [granodioritee](https://github.com/granodioritee). Also try [Spy Words](https://github.com/granodioritee/spy-words) and [Werewolf](https://github.com/granodioritee/werewolf).
+Made by [granodioritee](https://github.com/granodioritee). Also try [Spy Words](https://github.com/granodioritee/spy-words), [Werewolf](https://github.com/granodioritee/werewolf) and [Blend In](https://github.com/granodioritee/blend-in).
