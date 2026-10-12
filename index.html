@@ -295,7 +295,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 
   <section class="panel" id="lobby" hidden>
     <h2>Race your friends</h2>
-    <p>Everyone gets the same card and 5 minutes to solve it. First to make 24 scores 3 points, second gets 2, third gets 1, and everyone after that gets 0. Run out of time and you get 0 and see the answer. Once everyone is done, the next card comes after a 3 second countdown. Each player has 3 hints for the whole game.</p>
+    <p>Everyone gets the same card and 5 minutes to solve it. First to make 24 scores 3 points, second gets 2, everyone else who solves it gets 1. Run out of time and you get 0 and see the answer. Once everyone is done, the next card comes after a 3 second countdown. Each player has 3 hints for the whole game.</p>
     <div class="field"><label for="nick">Your name</label><input class="inp" id="nick" maxlength="16" placeholder="e.g. Nate" autocomplete="off"></div>
     <button class="btn gold" type="button" id="create">Create a room</button>
     <div class="or">or join one</div>
@@ -520,7 +520,7 @@ let timedOut = false, raceHints = 3, lastTickSec = -1;
 /* multiplayer state */
 let mode = "solo", tab = "solo", room = null, roomCode = "";
 let amHost = false, curRound = 0, seenOrder = [], seenRound = 0;
-const PTS = [3, 2, 1]; /* 1st, 2nd, 3rd; anyone after that scores 0 */
+const PTS = [3, 2];
 const NEXT_DELAY = 3000;
 let autoFor = 0, autoAt = 0, autoSec = -1, dealtFor = -1;
 const COLORS = ["#E9BC45","#E2665B","#5DA9E9","#57C08A","#C792EA","#F29E4C","#7FD1C7","#F7F2E2"];
@@ -957,7 +957,7 @@ function onSolves(all){
     const ordered = Object.entries(entries).filter(([, t]) => typeof t === "number").sort((a,b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1)).map(([id]) => id);
     if(+r === curRound) roundOrder = ordered;
     if(+r <= matchBase || +r > matchBase + matchLen) continue; /* only this game's rounds count */
-    ordered.forEach((id, i) => { scores[id] = (scores[id] || 0) + (PTS[i] ?? 0); solvedN[id] = (solvedN[id] || 0) + 1; });
+    ordered.forEach((id, i) => { scores[id] = (scores[id] || 0) + (PTS[i] ?? 1); solvedN[id] = (solvedN[id] || 0) + 1; });
     if(ordered[0]) wins[ordered[0]] = (wins[ordered[0]] || 0) + 1;
   }
   if(!all[curRound]) roundOrder = [];
@@ -1005,8 +1005,8 @@ function announceMyPlace(){
   if(!won) return false;
   const place = roundOrder.indexOf(uid) + 1;
   if(!place) return false;
-  const pts = PTS[place - 1] ?? 0;
-  setStatus(pts ? `You finished ${ord(place)}! +${pts} point${pts > 1 ? "s" : ""}` : `Solved, but you finished ${ord(place)}. Only the top 3 score.`, "good");
+  const pts = PTS[place - 1] ?? 1;
+  setStatus(`You finished ${ord(place)}! +${pts} point${pts > 1 ? "s" : ""}`, "good");
   return true;
 }
 let flashId = null;
