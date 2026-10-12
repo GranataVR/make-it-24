@@ -692,6 +692,7 @@
           }
         },
         "chat": {
+          ".read": "auth != null",
           "$m": {
             ".write": "auth != null && !data.exists() && root.child('bi').child($code).child('players').child(auth.uid).exists() && (!root.child('bi').child($code).child('game').exists() || root.child('bi').child($code).child('over').child(root.child('bi').child($code).child('game').child('id').val()).exists() || (root.child('bi').child($code).child('game').child('players').child(auth.uid).exists() && !root.child('bi').child($code).child('out').child(root.child('bi').child($code).child('game').child('id').val()).child(auth.uid).exists()))",
             ".validate": "newData.hasChildren(['by', 't', 'at']) && newData.child('by').val() === auth.uid",
@@ -715,7 +716,7 @@
             "$n": {
               "$uid": {
                 ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('bi').child($code).child('phase').child($g).child('stage').val() === 'talk' && root.child('bi').child($code).child('phase').child($g).child('speaker').val() === auth.uid && !root.child('bi').child($code).child('out').child($g).child(auth.uid).exists()",
-                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30 && newData.val().matches(/^\\S+( \\S+){0,2}$/)"
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30 && newData.val().length - newData.val().replace(' ', '').length <= 2"
               }
             }
           }
