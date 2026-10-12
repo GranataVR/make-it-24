@@ -208,7 +208,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .pl.gone{opacity:.45}
 /* game length picker, and the leaderboard that closes a game: an ivory card with a podium, dealt over the table */
 .lenrow{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-.lenseg{display:flex;gap:6px}
+.lenseg,.hintseg{display:flex;gap:6px}
 .lchip{border:1px solid rgba(243,238,220,.2);background:transparent;color:var(--cream);font:700 13px var(--f-body);padding:7px 11px;border-radius:999px;cursor:pointer;letter-spacing:0;text-transform:none;transition:background .2s,color .2s}
 .lchip[aria-pressed="true"]{background:var(--cream);color:var(--ink);border-color:var(--cream)}
 .lchip:disabled{cursor:default}
@@ -245,6 +245,21 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .res-card .btn{border-color:rgba(27,33,30,.25);background:transparent;color:var(--ink)}
 .res-card .btn.gold{background:var(--card-green);border-color:var(--card-green);color:var(--ivory)}
 @media (prefers-reduced-motion:reduce){.res-card{animation:none}}
+/* the countdown to the next card: a big poker chip in the middle of the table, popping on every second */
+.countdown{position:fixed;inset:0;z-index:45;display:grid;place-items:center;pointer-events:none;background:radial-gradient(circle at center, rgba(4,20,14,.55), transparent 60%)}
+.cd-chip{width:min(52vw,210px);aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--ink);
+  background:repeating-conic-gradient(var(--gold) 0 10deg, var(--ivory) 10deg 20deg);
+  box-shadow:0 0 0 6px rgba(233,188,69,.35),0 0 60px rgba(233,188,69,.55),0 22px 40px -12px rgba(0,0,0,.7);position:relative}
+.cd-chip::before{content:"";position:absolute;inset:13%;border-radius:50%;background:var(--gold);box-shadow:inset 0 0 0 3px rgba(27,33,30,.25)}
+.cd-chip small,.cd-chip b{position:relative}
+.cd-chip small{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+.cd-chip b{font-family:var(--f-num);font-weight:900;font-stretch:120%;font-size:min(26vw,104px);line-height:.95;font-variant-numeric:tabular-nums}
+.cd-chip.pop{animation:cdPop .9s cubic-bezier(.2,.9,.3,1.3)}
+.cd-chip.last{background:repeating-conic-gradient(var(--red) 0 10deg, var(--ivory) 10deg 20deg)}
+.cd-chip.last::before{background:var(--red)}
+.cd-chip.last small,.cd-chip.last b{color:var(--ivory)}
+@keyframes cdPop{0%{transform:scale(1.35) rotate(-12deg)}35%{transform:scale(.94) rotate(3deg)}100%{transform:scale(1) rotate(0)}}
+@media (prefers-reduced-motion:reduce){.cd-chip.pop{animation:none}}
 /* chat: quick taunts, a log you can open, and bubbles that float over the table when a message lands */
 .taunts{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px;margin:-2px}
 .taunts::-webkit-scrollbar{display:none}
@@ -295,7 +310,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 
   <section class="panel" id="lobby" hidden>
     <h2>Race your friends</h2>
-    <p>Everyone gets the same card and 5 minutes to solve it. First to make 24 scores 3 points, second gets 2, everyone else who solves it gets 1. Run out of time and you get 0 and see the answer. Once everyone is done, the next card comes after a 3 second countdown. Each player has 3 hints for the whole game.</p>
+    <p>Everyone gets the same card and 3 minutes to solve it. First to make 24 scores 3 points, second gets 2, everyone else who solves it gets 1. Run out of time and you get 0 and see the answer. Once everyone is done, the next card comes after a 5 second countdown. Each player has 3 hints for the whole game, unless the host turns hints off.</p>
     <div class="field"><label for="nick">Your name</label><input class="inp" id="nick" maxlength="16" placeholder="e.g. Nate" autocomplete="off"></div>
     <button class="btn gold" type="button" id="create">Create a room</button>
     <div class="or">or join one</div>
@@ -311,6 +326,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
     </div>
     <div class="players" id="players" aria-live="polite"></div>
     <div class="lenrow" id="lenRow" hidden><span>Game length</span><div class="lenseg" role="group" aria-label="Game length"></div></div>
+    <div class="lenrow" id="hintRow" hidden><span>Hints</span><div class="hintseg" role="group" aria-label="Hints"></div></div>
     <div class="taunts" id="taunts" role="group" aria-label="Quick taunts"></div>
     <details class="chat" id="chatBox">
       <summary>Chat <span id="chatCount"></span></summary>
@@ -383,13 +399,14 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
     <summary>How to play</summary>
     <p>Combine two numbers with + − × ÷ and the result takes their place. Keep going until one number is left. Make it 24 and the card is yours.</p>
     <p>There are 1,362 cards using numbers 1 to 13, and every one has a solution. The dots in the corner show difficulty, like the original 24 cards. Hints show the next move, but peeking at the answer resets your streak.</p>
-    <p>With friends: one person creates a room and shares the code. Everyone races on the same card with a 5 minute limit, and the host can deal the next one once everybody has solved it or time runs out. Each player gets 3 hints for the whole game, and the answer only shows once you solve the card or time runs out. Share the invite link and friends can join straight from their phone, no account needed.</p>
+    <p>With friends: one person creates a room and shares the code. Everyone races on the same card with a 3 minute limit, and the next card comes by itself after a 5 second countdown once everybody has solved it or time runs out. Each player gets 3 hints for the whole game (the host can turn hints off), and the answer only shows once you solve the card or time runs out. Share the invite link and friends can join straight from their phone, no account needed.</p>
     <p>Keyboard: <kbd>1</kbd>–<kbd>4</kbd> numbers, <kbd>+</kbd> <kbd>-</kbd> <kbd>*</kbd> <kbd>/</kbd> operators, <kbd>Backspace</kbd> undo, <kbd>H</kbd> hint, <kbd>Enter</kbd> next card.</p>
   </details>
   <footer class="credit">Made by <a href="https://github.com/granodioritee" target="_blank" rel="noopener">granodioritee</a> · <a href="https://github.com/granodioritee/make-it-24" target="_blank" rel="noopener" id="starLink">⭐ Star on GitHub</a></footer>
 </div>
 <canvas id="fx" aria-hidden="true"></canvas>
 <div class="bubbles" id="bubbles" aria-live="polite"></div>
+<div class="countdown" id="countdown" hidden aria-live="assertive"><div class="cd-chip"><small>Next card</small><b id="cdNum"></b></div></div>
 <div class="results" id="results" hidden role="dialog" aria-modal="true" aria-labelledby="resTitle">
   <div class="res-card">
     <small class="res-sub" id="resSub"></small>
@@ -397,6 +414,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
     <div class="podium" id="podium"></div>
     <ol class="ranks" id="ranks"></ol>
     <div class="lenrow" id="resLen" hidden><span>Next game</span><div class="lenseg" role="group" aria-label="Next game length"></div></div>
+    <div class="lenrow" id="resHint" hidden><span>Hints</span><div class="hintseg" role="group" aria-label="Hints in the next game"></div></div>
     <p class="res-note" id="resNote"></p>
     <div class="res-btns"><button class="btn" type="button" id="resClose">Close</button><button class="btn gold" type="button" id="resAgain">Play again</button></div>
   </div>
@@ -462,6 +480,9 @@ const S = (() => {
     deal(){ noise(.18,{vol:.18,freq:3200,sweep:1100,q:.7}); tone(150,.09,{vol:.14,at:.16}); },
     rival(){ tone(988,.09,{type:"square",vol:.05}); tone(740,.14,{type:"square",vol:.05,at:.09}); },
     chat(){ tone(1047,.07,{vol:.1}); tone(1397,.1,{vol:.08,at:.06}); },
+    /* countdown beeps: loud enough to hear from across the room, higher on the last one */
+    count(last){ const f = last ? 1175 : 880; tone(f,.22,{type:"square",vol:.11}); tone(f * 2,.16,{vol:.08}); tone(f / 2,.25,{type:"triangle",vol:.16}); },
+    go(){ [784,988,1175,1568].forEach((f,i) => tone(f,.28,{type:"square",vol:.08,at:i*.06})); tone(392,.5,{type:"triangle",vol:.18}); },
     join(){ tone(660,.1,{vol:.12}); tone(990,.16,{vol:.1,at:.08}); },
     tick(){ tone(1250,.04,{type:"square",vol:.045}); },
     timeup(){ tone(233,.55,{type:"sawtooth",vol:.08,to:150}); tone(220,.55,{type:"square",vol:.04,to:140,at:.02}); },
@@ -521,7 +542,7 @@ let timedOut = false, raceHints = 3, lastTickSec = -1;
 let mode = "solo", tab = "solo", room = null, roomCode = "";
 let amHost = false, curRound = 0, seenOrder = [], seenRound = 0;
 const PTS = [3, 2];
-const NEXT_DELAY = 3000;
+const NEXT_DELAY = 5000;
 let autoFor = 0, autoAt = 0, autoSec = -1, dealtFor = -1;
 const COLORS = ["#E9BC45","#E2665B","#5DA9E9","#57C08A","#C792EA","#F29E4C","#7FD1C7","#F7F2E2"];
 let myColor = store.get("m24-color", null);
@@ -533,7 +554,7 @@ const ord = n => n + (n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n 
 
 const fmt = s => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
 const elapsed = () => frozen || (performance.now() - t0) / 1000;
-const RACE_LIMIT = 300, RACE_HINTS = 3;
+const RACE_LIMIT = 180, RACE_HINTS = 3;
 function paintTimer(){
   const el = $("#timer"), race = mode === "race";
   el.textContent = race ? fmt(Math.max(0, RACE_LIMIT - elapsed())) : fmt(elapsed());
@@ -596,7 +617,7 @@ function render(pops = [], mergeIdx = -1, popDelay = 0){
   $("#undo").disabled = won || flipped || timedOut || !history.length;
   $("#reset").disabled = won || flipped || timedOut || !history.length;
   $("#hint").disabled = won || flipped || timedOut || (mode === "race" && (raceHints <= 0 || !curRound));
-  $("#hintLbl").textContent = mode === "race" ? `Hint (${raceHints})` : "Hint";
+  $("#hintLbl").textContent = mode !== "race" ? "Hint" : matchHints ? `Hint (${raceHints})` : "No hints";
   $("#flip").disabled = mode === "race" && !won && !timedOut;
   trailEl.textContent = trail.join("   ·   ");
 }
@@ -723,7 +744,7 @@ function doReset(){
 }
 function doHint(){
   if(busy || won || flipped || timedOut) return;
-  if(mode === "race" && (raceHints <= 0 || !curRound)){ S.deselect(); setStatus("No hints left for this game."); return; }
+  if(mode === "race" && (raceHints <= 0 || !curRound)){ S.deselect(); setStatus(matchHints ? "No hints left for this game." : "Hints are off for this game."); return; }
   const steps = solveFrom(slots, true) || solveFrom(slots, false);
   if(!steps || !steps.length){ S.wrong(); shake(); setStatus("There's no way to 24 from here. Undo a step.", "bad"); return; }
   hint = steps[0]; selected = null; op = null;
@@ -757,23 +778,33 @@ function updateMeta(){
     $("#lvl").textContent = currentCard ? LEVEL[currentCard.d] : "";
   }
 }
+/* the big chip in the middle: a number and a beep each second, a fanfare as the card comes */
+function showCountdown(s){
+  const box = $("#countdown"), chip = box.querySelector(".cd-chip");
+  if(!s){ if(!box.hidden){ box.hidden = true; S.go(); } return; }
+  box.hidden = false; $("#cdNum").textContent = s;
+  chip.classList.toggle("last", s === 1);
+  chip.classList.remove("pop"); void chip.offsetWidth; chip.classList.add("pop");
+  S.count(s === 1);
+}
 function updateNext(){
   const n = $("#next"), label = n.querySelector("span");
   if(mode === "race"){
-    /* a round only ends once every player has solved the card or the 5 minutes are up */
+    /* a round only ends once every player has solved the card or the 3 minutes are up */
     checkMatch();
-    if(matchOver()){ n.disabled = false; n.classList.add("ready"); label.textContent = "See results"; return; }
+    if(matchOver()){ showCountdown(0); n.disabled = false; n.classList.add("ready"); label.textContent = "See results"; return; }
     const done = everyoneDone(), left = waitingOn();
-    /* once everyone is done, the next card comes by itself after a short countdown (the host can tap to skip it) */
+    /* once everyone is done, the next card comes by itself after a 5 second countdown that nobody can skip */
     if(done && matchRound() > 0){
       if(autoFor !== curRound){ autoFor = curRound; autoAt = serverNow() + NEXT_DELAY; autoSec = -1; }
       const s = Math.max(0, Math.ceil((autoAt - serverNow()) / 1000));
-      if(s !== autoSec){ autoSec = s; if(s > 0) S.tick(); }
+      if(s !== autoSec){ autoSec = s; showCountdown(s); }
       if(s === 0 && amHost) hostDeal();
-      n.disabled = !amHost; n.classList.add("ready");
+      n.disabled = true; n.classList.remove("ready");
       label.textContent = s > 0 ? `Next card in ${s}…` : "Dealing…";
       return;
     }
+    showCountdown(0);
     n.disabled = !amHost || !done;
     n.classList.toggle("ready", amHost && done);
     if(!done) label.textContent = left ? `Waiting for ${left} player${left === 1 ? "" : "s"}` : "Waiting for players";
@@ -798,6 +829,8 @@ let raceDealtAt = 0, scores = {}, roundOrder = [];
 const LENGTHS = [10, 15, 20];
 let matchLen = 10, matchBase = 0, wins = {}, solvedN = {}, resultsFor = -1;
 const pickLen = () => LENGTHS.includes(store.get("m24-len", 10)) ? store.get("m24-len", 10) : 10;
+const pickHints = () => store.get("m24-hints", true) !== false;
+let matchHints = true, nextHints = null;
 const matchRound = () => Math.max(0, curRound - matchBase);
 /* a game is over once its last round has ended for everyone */
 const matchOver = () => !!room && matchRound() >= matchLen && everyoneDone();
@@ -864,7 +897,7 @@ async function joinRoom(code, asHost){
       if(snap.exists()){ code = genCode(); }
       roomCode = code;
       await F.set(myRef(), { name:nm, color:myColor, joinedAt:F.serverTimestamp() });
-      await F.set(F.ref(F.db, roomPath("meta")), { host:uid, round:0, card:-1, dealtAt:0, createdAt:F.serverTimestamp(), len:pickLen(), base:0 });
+      await F.set(F.ref(F.db, roomPath("meta")), { host:uid, round:0, card:-1, dealtAt:0, createdAt:F.serverTimestamp(), len:pickLen(), base:0, hints:pickHints() });
     } else {
       if(!snap.exists()){ setLobbyMsg(`There's no room called ${code.toUpperCase()}. Check the code with your friend.`); paintConn(); return; }
       roomCode = code;
@@ -878,7 +911,7 @@ async function joinRoom(code, asHost){
   myPlayerRef = myRef(); myName = nm; myJoinedAt = 0;
   F.onDisconnect(myPlayerRef).remove();
   room = true; mode = "race"; tab = "friends"; amHost = asHost;
-  curRound = 0; raceHints = RACE_HINTS; raceDealtAt = 0; matchLen = pickLen(); matchBase = 0; wins = {}; solvedN = {}; resultsFor = -1; meta = null; players = {}; solves = {}; scores = {}; roundOrder = []; seenOrder = []; seenRound = 0;
+  curRound = 0; raceHints = RACE_HINTS; raceDealtAt = 0; matchLen = pickLen(); matchBase = 0; matchHints = true; wins = {}; solvedN = {}; resultsFor = -1; meta = null; players = {}; solves = {}; scores = {}; roundOrder = []; seenOrder = []; seenRound = 0;
   chat = []; chatSeen = null; renderChat();
   if(location.hash.slice(1).toLowerCase() !== roomCode) history_replace("#" + roomCode);
   unsubs = [
@@ -906,7 +939,7 @@ function leaveRoom(){
   unsubs.forEach(u => { try { u(); } catch(e){} }); unsubs = [];
   if(myPlayerRef){ F.onDisconnect(myPlayerRef).cancel().catch(() => {}); F.remove(myPlayerRef).catch(() => {}); myPlayerRef = null; }
   room = null; roomCode = ""; mode = "solo"; amHost = false; curRound = 0; meta = null; players = {}; solves = {};
-  chat = []; chatSeen = null; $("#bubbles").replaceChildren(); $("#results").hidden = true;
+  chat = []; chatSeen = null; $("#bubbles").replaceChildren(); $("#results").hidden = true; $("#countdown").hidden = true;
   history_replace(location.pathname + location.search);
   updateModeUI();
   deal(() => { currentCard = DECK[order[idx]]; });
@@ -927,12 +960,19 @@ function refreshHost(){
 
 function onMeta(m){
   if(!m){ if(room){ setStatus("This room was closed.", "bad"); leaveRoom(); } return; }
+  const firstMeta = meta === null;
   meta = m;
   refreshHost();
-  const len = LENGTHS.includes(m.len) ? m.len : 10, base = Number.isInteger(m.base) ? m.base : 0;
-  if(len !== matchLen || base !== matchBase){
-    if(base !== matchBase){ raceHints = RACE_HINTS; nextLen = null; $("#results").hidden = true; }
+  const len = LENGTHS.includes(m.len) ? m.len : 10, base = Number.isInteger(m.base) ? m.base : 0, hints = m.hints !== false;
+  const newGame = base !== matchBase;
+  if(len !== matchLen || newGame){
+    if(newGame){ nextLen = null; nextHints = null; $("#results").hidden = true; }
     matchLen = len; matchBase = base; onSolves(solves);
+  }
+  /* hints are 3 per player per game, or none if the host turned them off; the setting can change until the first card */
+  if(firstMeta || newGame || hints !== matchHints){
+    if(firstMeta || newGame || matchRound() === 0) raceHints = hints ? RACE_HINTS : 0;
+    matchHints = hints; render();
   }
   renderLen(); updateMeta();
   if(Number.isInteger(m.round) && m.round > curRound && DECK[m.card]) startRound(m.round, m.card, Number(m.dealtAt) || serverNow());
@@ -974,6 +1014,8 @@ function pickCard(){
 }
 function hostDeal(){
   if(!amHost || busy || !room || !everyoneDone() || matchRound() >= matchLen) return;
+  /* nobody can cut the countdown short, not even the host */
+  if(autoFor === curRound && serverNow() < autoAt) return;
   /* the countdown calls this on every tick, so deal each round only once */
   if(dealtFor === curRound) return;
   dealtFor = curRound;
@@ -1062,6 +1104,22 @@ function renderLen(){
     }));
     [...box.children].forEach(b => { b.setAttribute("aria-pressed", String(+b.dataset.len === cur)); b.disabled = !amHost; });
   });
+  $("#hintRow").hidden = $("#lenRow").hidden;
+  $("#resHint").hidden = !amHost;
+  [[$("#hintRow .hintseg"), matchHints, false], [$("#resHint .hintseg"), nextHints ?? matchHints, true]].forEach(([box, cur, next]) => {
+    if(!box.children.length) box.replaceChildren(...[true, false].map(v => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "lchip"; b.dataset.on = v ? "1" : "0"; b.textContent = v ? "On" : "Off";
+      b.addEventListener("click", () => setHints(v, next)); return b;
+    }));
+    [...box.children].forEach(b => { b.setAttribute("aria-pressed", String((b.dataset.on === "1") === cur)); b.disabled = !amHost; });
+  });
+}
+function setHints(v, next){
+  if(!amHost || !room) return;
+  store.set("m24-hints", v); S.tap();
+  if(next){ nextHints = v; renderLen(); return; }
+  if(v === matchHints || matchRound() !== 0) return;
+  F.update(F.ref(F.db, roomPath("meta")), { host:uid, hints:v }).catch(e => { console.error(e); setStatus("Couldn't change the hints setting.", "bad"); });
 }
 function setLen(n, next){
   if(!amHost || !room || !LENGTHS.includes(n)) return;
@@ -1074,7 +1132,7 @@ function setLen(n, next){
 function newMatch(){
   if(!amHost || !room || !matchOver()) return;
   $("#resAgain").disabled = true;
-  F.update(F.ref(F.db, roomPath("meta")), { host:uid, len:nextLen || matchLen, base:curRound, round:curRound + 1, card:pickCard(), dealtAt:F.serverTimestamp() })
+  F.update(F.ref(F.db, roomPath("meta")), { host:uid, len:nextLen || matchLen, hints:nextHints ?? matchHints, base:curRound, round:curRound + 1, card:pickCard(), dealtAt:F.serverTimestamp() })
     .then(() => track("round_start", { players:Object.keys(players).length }))
     .catch(e => { console.error(e); $("#resNote").textContent = "Couldn't start a new game. Try again."; })
     .finally(() => { $("#resAgain").disabled = false; });
@@ -1099,7 +1157,7 @@ function standings(){
 }
 function showResults(fresh){
   const rows = standings(), top = rows.filter(r => r.place === 1), mine = rows.find(r => r.me);
-  $("#resSub").textContent = `${matchLen} rounds · Room ${roomCode.toUpperCase()}`;
+  $("#resSub").textContent = `${matchLen} rounds${matchHints ? "" : " · no hints"} · Room ${roomCode.toUpperCase()}`;
   $("#resTitle").textContent = !rows.length ? "Final standings" : top.length > 1 ? "It's a tie!" : top[0].me ? "You win! 🏆" : `${top[0].name} wins!`;
   const swatch = r => { const s = document.createElement("span"); s.className = "sw"; s.style.background = r.color; s.textContent = r.name.slice(0, 1).toUpperCase(); return s; };
   /* podium: 2nd, 1st, 3rd from left to right */
