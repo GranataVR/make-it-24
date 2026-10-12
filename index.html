@@ -950,6 +950,8 @@ function onSolves(all){
   }
   if(!all[curRound]) roundOrder = [];
   noticeSolves(); renderPlayers(); updateNext();
+  /* your own solve first arrives with a local time estimate and is corrected by the server, so keep an open leaderboard current */
+  if(!$("#results").hidden) showResults(false);
 }
 
 function pickCard(){
@@ -966,7 +968,7 @@ function hostDeal(){
 }
 function startRound(r, cardIdx, dealtAt){
   curRound = r; raceDealtAt = dealtAt; seenOrder = []; seenRound = r; roundOrder = [];
-  const entries = solves[r]; if(entries) onSolves(solves);
+  const entries = solves[r]; if(entries) onSolves(solves); else renderPlayers();
   deal(() => { currentCard = DECK[cardIdx]; });
 }
 function resyncTimer(){ if(mode === "race" && curRound && !won && !timedOut){ t0 = performance.now() - Math.max(0, serverNow() - raceDealtAt); paintTimer(); } }
