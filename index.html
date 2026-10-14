@@ -185,6 +185,14 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .inp:focus{outline:2px solid var(--gold);outline-offset:1px}
 .inp.code{text-transform:uppercase;letter-spacing:.25em;font-family:var(--f-num);font-weight:800}
 .joinrow{display:grid;grid-template-columns:1fr auto;gap:8px}
+/* opened from an invite link: one obvious way in */
+.invite{display:flex;flex-direction:column;align-items:center;gap:3px;padding:14px 12px;border-radius:16px;background:rgba(233,188,69,.1);border:1.5px dashed rgba(233,188,69,.55);text-align:center}
+.invite small{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.invite b{font-family:var(--f-num);font-weight:900;font-stretch:120%;font-size:36px;letter-spacing:.16em;line-height:1.1;color:var(--gold)}
+.invite span{font-size:14px;font-weight:600;color:var(--cream)}
+#joinInv{height:52px;font-size:16px}
+.linkbtn{align-self:center;background:none;border:0;padding:4px 8px;color:var(--muted);font:600 13px var(--f-body);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.linkbtn:hover{color:var(--cream)}
 .btn{height:44px;border-radius:12px;border:1px solid rgba(243,238,220,.25);background:rgba(243,238,220,.08);color:var(--cream);font:700 14px var(--f-body);padding:0 16px;cursor:pointer;white-space:nowrap}
 .btn.gold{background:var(--gold);border-color:var(--gold);color:var(--ink)}
 .btn:disabled{opacity:.4;cursor:default}
@@ -247,17 +255,20 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 @media (prefers-reduced-motion:reduce){.res-card{animation:none}}
 /* the countdown to the next card: a big poker chip in the middle of the table, popping on every second */
 .countdown{position:fixed;inset:0;z-index:45;display:grid;place-items:center;pointer-events:none;background:radial-gradient(circle at center, rgba(4,20,14,.55), transparent 60%)}
-.cd-chip{width:min(52vw,210px);aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--ink);
-  background:repeating-conic-gradient(var(--gold) 0 10deg, var(--ivory) 10deg 20deg);
-  box-shadow:0 0 0 6px rgba(233,188,69,.35),0 0 60px rgba(233,188,69,.55),0 22px 40px -12px rgba(0,0,0,.7);position:relative}
-.cd-chip::before{content:"";position:absolute;inset:13%;border-radius:50%;background:var(--gold);box-shadow:inset 0 0 0 3px rgba(27,33,30,.25)}
-.cd-chip small,.cd-chip b{position:relative}
+/* each second is a different chip from the table's own set: blue, green, black, gold, then red */
+.cd-chip{--chip:var(--gold);--chip-ink:var(--ink);width:min(52vw,210px);aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  background:repeating-conic-gradient(var(--chip) 0 10deg, var(--ivory) 10deg 20deg);
+  box-shadow:0 0 0 6px rgba(243,238,220,.14),0 0 70px -4px var(--chip),0 22px 40px -12px rgba(0,0,0,.7);position:relative;transition:box-shadow .3s}
+.cd-chip::before{content:"";position:absolute;inset:13%;border-radius:50%;background:var(--chip);box-shadow:inset 0 0 0 3px rgba(27,33,30,.25),inset 0 0 0 7px rgba(243,238,220,.18)}
+.cd-chip small,.cd-chip b{position:relative;color:var(--chip-ink)}
+.cd-chip.c5{--chip:var(--blue);--chip-ink:var(--ivory)}
+.cd-chip.c4{--chip:var(--chipgreen);--chip-ink:var(--ivory)}
+.cd-chip.c3{--chip:var(--black);--chip-ink:var(--gold)}
+.cd-chip.c2{--chip:var(--gold);--chip-ink:var(--ink)}
+.cd-chip.c1{--chip:var(--red);--chip-ink:var(--ivory)}
 .cd-chip small{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
 .cd-chip b{font-family:var(--f-num);font-weight:900;font-stretch:120%;font-size:min(26vw,104px);line-height:.95;font-variant-numeric:tabular-nums}
 .cd-chip.pop{animation:cdPop .9s cubic-bezier(.2,.9,.3,1.3)}
-.cd-chip.last{background:repeating-conic-gradient(var(--red) 0 10deg, var(--ivory) 10deg 20deg)}
-.cd-chip.last::before{background:var(--red)}
-.cd-chip.last small,.cd-chip.last b{color:var(--ivory)}
 @keyframes cdPop{0%{transform:scale(1.35) rotate(-12deg)}35%{transform:scale(.94) rotate(3deg)}100%{transform:scale(1) rotate(0)}}
 @media (prefers-reduced-motion:reduce){.cd-chip.pop{animation:none}}
 /* chat: quick taunts, a log you can open, and bubbles that float over the table when a message lands */
@@ -311,10 +322,13 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
   <section class="panel" id="lobby" hidden>
     <h2>Race your friends</h2>
     <p>Everyone gets the same card and 3 minutes to solve it. First to make 24 scores 3 points, second gets 2, everyone else who solves it gets 1. Run out of time and you get 0 and see the answer. Once everyone is done, the next card comes after a 5 second countdown. Each player has 3 hints for the whole game, unless the host turns hints off.</p>
+    <div class="invite" id="inviteBox" hidden><small>You're invited</small><b id="invCode"></b><span id="invWho">Checking the room…</span></div>
     <div class="field"><label for="nick">Your name</label><input class="inp" id="nick" maxlength="16" placeholder="e.g. Nate" autocomplete="off"></div>
+    <button class="btn gold" type="button" id="joinInv" hidden></button>
+    <button class="linkbtn" type="button" id="notInvited" hidden>or create your own room</button>
     <button class="btn gold" type="button" id="create">Create a room</button>
-    <div class="or">or join one</div>
-    <div class="joinrow"><input class="inp code" id="codeIn" maxlength="4" placeholder="CODE" autocomplete="off" aria-label="Room code"><button class="btn" type="button" id="join">Join</button></div>
+    <div class="or" id="orJoin">or join one</div>
+    <div class="joinrow" id="joinRow"><input class="inp code" id="codeIn" maxlength="4" placeholder="CODE" autocomplete="off" aria-label="Room code"><button class="btn" type="button" id="join">Join</button></div>
     <div class="lmsg" id="lmsg"></div>
     <div class="conn"></div>
   </section>
@@ -783,8 +797,7 @@ function showCountdown(s){
   const box = $("#countdown"), chip = box.querySelector(".cd-chip");
   if(!s){ if(!box.hidden){ box.hidden = true; S.go(); } return; }
   box.hidden = false; $("#cdNum").textContent = s;
-  chip.classList.toggle("last", s === 1);
-  chip.classList.remove("pop"); void chip.offsetWidth; chip.classList.add("pop");
+  chip.className = "cd-chip c" + Math.min(s, 5); void chip.offsetWidth; chip.classList.add("pop");
   S.count(s === 1);
 }
 function updateNext(){
@@ -853,7 +866,7 @@ async function initFirebase(){
     F = Object.assign({ db }, dbM);
     F.onValue(F.ref(db, ".info/serverTimeOffset"), s => { offset = Number(s.val()) || 0; });
     F.onValue(F.ref(db, ".info/connected"), s => { connOK = !!s.val(); if(connOK) rejoinPresence(); paintConn(); });
-    fbState = "ready"; paintConn();
+    fbState = "ready"; paintConn(); checkInvite();
   } catch(e){
     console.error(e); fbState = "error"; paintConn();
   }
@@ -868,7 +881,7 @@ function paintConn(){
   else if(room){ const n = Object.keys(players).length; t = `Online · ${n} player${n === 1 ? "" : "s"} in this room`; k = "ok"; }
   else { t = "Online and ready to play"; k = "ok"; }
   $$(".conn").forEach(el => { el.textContent = t; el.dataset.k = k; });
-  $("#create").disabled = fbState !== "ready"; $("#join").disabled = fbState !== "ready";
+  $("#create").disabled = fbState !== "ready"; $("#join").disabled = fbState !== "ready"; $("#joinInv").disabled = fbState !== "ready";
 }
 
 function updateModeUI(){
@@ -881,6 +894,27 @@ function updateModeUI(){
   updateMeta(); updateNext(); render(); paintConn();
 }
 function setLobbyMsg(t){ $("#lmsg").textContent = t; }
+/* opened from an invite link: show that room and a single "Join" button, so new players don't create a room by mistake */
+let invite = "";
+function paintInvite(){
+  const on = !!invite;
+  $("#inviteBox").hidden = !on; $("#joinInv").hidden = !on; $("#notInvited").hidden = !on;
+  $("#create").hidden = on; $("#orJoin").hidden = on; $("#joinRow").hidden = on;
+  if(on){ $("#invCode").textContent = invite.toUpperCase(); $("#joinInv").textContent = `Join room ${invite.toUpperCase()}`; }
+}
+/* say who's waiting in the invited room, or fall back to the normal lobby if it's gone */
+async function checkInvite(){
+  if(!invite || fbState !== "ready") return;
+  const code = invite;
+  try {
+    const snap = (await F.get(F.ref(F.db, `rooms/${code}`))).val() || {};
+    if(invite !== code) return;
+    if(!snap.meta){ invite = ""; paintInvite(); setLobbyMsg(`Room ${code.toUpperCase()} isn't open anymore. Ask your friend for a new link, or create your own room.`); return; }
+    const ps = Object.values(snap.players || {}).filter(p => p && cleanName(p.name)).sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+    const host = snap.players && snap.players[snap.meta.host] ? cleanName(snap.players[snap.meta.host].name) : ps[0] ? cleanName(ps[0].name) : "";
+    $("#invWho").textContent = !ps.length ? "Nobody's in yet. Join and wait for your friends." : `${host} is waiting for you${ps.length > 1 ? ` with ${ps.length - 1} other${ps.length > 2 ? "s" : ""}` : ""}.`;
+  } catch(e){ console.warn(e); $("#invWho").textContent = "Add your name and join."; }
+}
 function genCode(){ const a = "abcdefghjkmnpqrstuvwxyz23456789"; let s = ""; for(let i = 0; i < 4; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
 const roomPath = (p = "") => `rooms/${roomCode}${p ? "/" + p : ""}`;
 
@@ -910,7 +944,7 @@ async function joinRoom(code, asHost){
   }
   myPlayerRef = myRef(); myName = nm; myJoinedAt = 0;
   F.onDisconnect(myPlayerRef).remove();
-  room = true; mode = "race"; tab = "friends"; amHost = asHost;
+  room = true; mode = "race"; tab = "friends"; amHost = asHost; invite = ""; paintInvite();
   curRound = 0; raceHints = RACE_HINTS; raceDealtAt = 0; matchLen = pickLen(); matchBase = 0; matchHints = true; wins = {}; solvedN = {}; resultsFor = -1; meta = null; players = {}; solves = {}; scores = {}; roundOrder = []; seenOrder = []; seenRound = 0;
   chat = []; chatSeen = null; renderChat();
   if(location.hash.slice(1).toLowerCase() !== roomCode) history_replace("#" + roomCode);
@@ -1274,6 +1308,9 @@ $$(".fchip").forEach(c => c.addEventListener("click", () => {
 $("#modeSolo").addEventListener("click", () => { tab = "solo"; if(room) leaveRoom(); else updateModeUI(); });
 $("#modeFriends").addEventListener("click", () => { tab = "friends"; updateModeUI(); });
 $("#create").addEventListener("click", () => joinRoom(genCode(), true));
+$("#joinInv").addEventListener("click", () => { if(invite) joinRoom(invite, false); });
+$("#notInvited").addEventListener("click", () => { invite = ""; $("#codeIn").value = ""; setLobbyMsg(""); history_replace(location.pathname + location.search); paintInvite(); $("#nick").focus(); });
+$("#nick").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); (invite ? $("#joinInv") : $("#create")).click(); } });
 $("#join").addEventListener("click", () => {
   const code = $("#codeIn").value.trim().toLowerCase();
   if(!/^[a-z0-9]{4}$/.test(code)){ setLobbyMsg("Room codes are 4 letters or numbers."); return; }
@@ -1331,7 +1368,7 @@ function step(){
 /* ---------- start ---------- */
 $("#nick").value = cleanName(store.get("m24-nick", ""));
 const hashCode = (location.hash || "").slice(1).toLowerCase();
-if(/^[a-z0-9]{4}$/.test(hashCode)){ $("#codeIn").value = hashCode.toUpperCase(); tab = "friends"; setLobbyMsg("You've been invited! Add your name and tap Join."); }
+if(/^[a-z0-9]{4}$/.test(hashCode)){ $("#codeIn").value = hashCode.toUpperCase(); tab = "friends"; invite = hashCode; paintInvite(); }
 paintSound(); buildOrder(); currentCard = DECK[order[0]]; load(); dealIn(); updateModeUI();
 paintConn(); initFirebase();
 </script>
