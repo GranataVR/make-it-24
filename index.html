@@ -191,6 +191,8 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .invite b{font-family:var(--f-num);font-weight:900;font-stretch:120%;font-size:36px;letter-spacing:.16em;line-height:1.1;color:var(--gold)}
 .invite span{font-size:14px;font-weight:600;color:var(--cream)}
 #joinInv{height:52px;font-size:16px}
+/* invited: the way in comes first, the rules after */
+#lobby.invited > .invite,#lobby.invited > .field,#lobby.invited > #joinInv,#lobby.invited > #notInvited{order:-1}
 .linkbtn{align-self:center;background:none;border:0;padding:4px 8px;color:var(--muted);font:600 13px var(--f-body);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .linkbtn:hover{color:var(--cream)}
 .btn{height:44px;border-radius:12px;border:1px solid rgba(243,238,220,.25);background:rgba(243,238,220,.08);color:var(--cream);font:700 14px var(--f-body);padding:0 16px;cursor:pointer;white-space:nowrap}
@@ -898,6 +900,7 @@ function setLobbyMsg(t){ $("#lmsg").textContent = t; }
 let invite = "";
 function paintInvite(){
   const on = !!invite;
+  $("#lobby").classList.toggle("invited", on);
   $("#inviteBox").hidden = !on; $("#joinInv").hidden = !on; $("#notInvited").hidden = !on;
   $("#create").hidden = on; $("#orJoin").hidden = on; $("#joinRow").hidden = on;
   if(on){ $("#invCode").textContent = invite.toUpperCase(); $("#joinInv").textContent = `Join room ${invite.toUpperCase()}`; }
